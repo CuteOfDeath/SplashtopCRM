@@ -1,5 +1,7 @@
 const styles = {
-    sigma: 20
+    lol : {
+        Haiiii: ":3"
+    }
 }
 
 export default styles
