@@ -130,7 +130,6 @@ export default function Dashboard() {
 
     function handleDetailHide(){
         setShowOffCanvas(false)
-        void handleFilter("Ostatnia Sesja","2026-05")
     }
 
     // fetch once on mount
@@ -181,9 +180,7 @@ export default function Dashboard() {
                                             )}
                                             {element == "ID" && (
                                                 <th>
-                                                    <Button variant="success" onClick={() => {
-                                                        void handleFilter("Nazwa Klienta","Cemit")
-                                                    }}>ID</Button>
+                                                    <Button variant="success">ID</Button>
                                                 </th>
                                             )}
                                         </Fragment>
@@ -218,10 +215,8 @@ export default function Dashboard() {
                                         <ListGroup.Item>Data ostatniego zalogowania: {currentRecordInfo?.["Ostatnio Online"]}</ListGroup.Item>
                                         <ListGroup.Item>Email ostatniego zalogowanego użytkownika: {currentRecordInfo?.["Ostatnio Zalogowany"]}</ListGroup.Item>
                                         <ListGroup.Item>Adres IP LAN: {currentRecordInfo?.["Adres IP LAN"]}</ListGroup.Item>
+                                        <ListGroup.Item>Notatka: {currentRecordInfo?.["Notatka"]}</ListGroup.Item>
                                     </ListGroup>
-                                    <p>Notatka:<br/>
-                                        {currentRecordInfo?.Notatka}
-                                    </p>
                                 </Offcanvas.Body>
                         </Offcanvas>
                     </>
