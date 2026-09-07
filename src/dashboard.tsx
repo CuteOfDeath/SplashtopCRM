@@ -42,7 +42,7 @@ export default function Dashboard() {
     const [currentFilters, setCurrentFilters] = useState<Filter[]>([])
     const [currentSort, setCurrentSort] = useState<boolean>(true) //false = desc, true = asc
     const VisibleInfo = ["ID","Nazwa","Nazwa Urządzenia","Nazwa Klienta", "System Operacyjny", "Wersja Streamera", "Ostatnia Sesja", "Ostatnio Online"]
-
+    const propsKeys: (keyof RecordRow)[] = ['Nazwa','Nazwa Urządzenia','Nazwa Klienta','System Operacyjny','Wersja Streamera','Adres IP','Ostatnia Sesja','Ostatnio Online','Ostatnio Zalogowany','Adres IP LAN','Notatka'];
 
     async function loadTable() {
         if (currentTable == undefined){
@@ -205,17 +205,9 @@ export default function Dashboard() {
                                 </Offcanvas.Header>
                                 <Offcanvas.Body>
                                     <ListGroup>
-                                        <ListGroup.Item>Nazwa: {currentRecordInfo?.Nazwa}</ListGroup.Item>
-                                        <ListGroup.Item>Nazwa Urządzenia: {currentRecordInfo?.["Nazwa Urządzenia"]}</ListGroup.Item>
-                                        <ListGroup.Item>Nazwa Klienta: {currentRecordInfo?.["Nazwa Klienta"]}</ListGroup.Item>
-                                        <ListGroup.Item>System Operacyjny: {currentRecordInfo?.["System Operacyjny"]}</ListGroup.Item>
-                                        <ListGroup.Item>Wersja Streamera: {currentRecordInfo?.["Wersja Streamera"]}</ListGroup.Item>
-                                        <ListGroup.Item>Adres IP: {currentRecordInfo?.["Adres IP"]}</ListGroup.Item>
-                                        <ListGroup.Item>Data ostatniej sesji: {currentRecordInfo?.["Ostatnia Sesja"]}</ListGroup.Item>
-                                        <ListGroup.Item>Data ostatniego zalogowania: {currentRecordInfo?.["Ostatnio Online"]}</ListGroup.Item>
-                                        <ListGroup.Item>Email ostatniego zalogowanego użytkownika: {currentRecordInfo?.["Ostatnio Zalogowany"]}</ListGroup.Item>
-                                        <ListGroup.Item>Adres IP LAN: {currentRecordInfo?.["Adres IP LAN"]}</ListGroup.Item>
-                                        <ListGroup.Item>Notatka: {currentRecordInfo?.["Notatka"]}</ListGroup.Item>
+                                        {propsKeys.map((key, index) => (
+                                            <ListGroup.Item key={index}>{key}: {currentRecordInfo?.[key]}</ListGroup.Item>
+                                        ))}
                                     </ListGroup>
                                 </Offcanvas.Body>
                         </Offcanvas>
