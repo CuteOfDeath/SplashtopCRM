@@ -55,7 +55,6 @@ export default function Dashboard() {
     async function handleDetailClick(id: number) {
         if (!showOffCanvas){
             try {
-            console.log(id,currentTable)
             const response = await fetch("//127.0.0.1/CRM/api/get_record.php", {
                 method: "POST",
                 body: JSON.stringify({
