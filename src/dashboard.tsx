@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { Fragment, useEffect, useState } from "react"
 import { Button, Container, Dropdown, ListGroup, Nav, Navbar, Offcanvas, Table } from "react-bootstrap"
 
 //TODO: Implement sorting. Implement a way to upload CSV files. Implement task assigning. Do visual touch ups
@@ -19,6 +19,11 @@ interface RecordRow {
     "Notatka"?: string
 }
 
+interface Filter {
+    Column : string
+    Filter: string
+}
+
 interface TableQueryResult {
     success: boolean
     table?: string
@@ -29,11 +34,12 @@ interface TableQueryResult {
 export default function Dashboard() {
     const [loading, setLoading] = useState<boolean>(true)
     const [tableRange, setTableRange] = useState<[number, number]>([0, 50])
-    const [recordTable, setRecordTable] = useState<RecordRow[] | undefined>(undefined)
     const [displayTable, setDisplayTable] = useState<RecordRow[] | undefined>(undefined)
     const [showOffCanvas, setShowOffCanvas] = useState<boolean>(false)
     const [currentTable, setCurrentTable] = useState<string | undefined>(undefined)
     const [currentRecordInfo, setCurrentRecordInfo] = useState<RecordRow | undefined>(undefined)
+    const [currentFilters, setCurrentFilters] = useState<Filter[]>([])
+    const [currentSort, setCurrentSort] = useState<boolean>(true) //false = desc, true = asc
     const VisibleInfo = ["ID","Nazwa","Nazwa Urządzenia","Nazwa Klienta", "System Operacyjny", "Wersja Streamera", "Ostatnia Sesja", "Ostatnio Online"]
 
 
@@ -44,7 +50,7 @@ export default function Dashboard() {
                     method: "GET"
                 })
                 const data: TableQueryResult = await response.json()
-                setRecordTable(data.result)
+                setDisplayTable(data.result)
                 setCurrentTable(data.table)
             } catch (error) {
                 console.error(error)
@@ -77,26 +83,56 @@ export default function Dashboard() {
         }
     }
 
-    async function handleFilter() {
-        
+    async function handleFilter(column : string, filter: string) {
+        let thisFilter: Filter = {
+            Column: column,
+            Filter: filter,
+        }
+        if(currentFilters.includes(thisFilter)){
+            throw new Error("Already filtering for this")
+        }
+        let localcurrentFilters: Filter[] = [...currentFilters, thisFilter]
+        let filteredcolumns: Record<string,string> = {}
+        localcurrentFilters.forEach(filters => {
+            filteredcolumns[filters.Column as keyof typeof filteredcolumns] = filters.Filter
+        });
+        console.log(filteredcolumns)
+        setLoading(true)
+        try {
+            const response = await fetch("//127.0.0.1/CRM/api/get_filtered_table.php", {
+                method: "POST",
+                body: JSON.stringify({
+                    table: currentTable,
+                    columns: filteredcolumns,
+                    sort: currentSort,
+                    range: tableRange,
+                })
+            })
+            const data: TableQueryResult = await response.json()
+            if (!response.ok || !data.success) {
+                throw new Error(data?.error)
+            }
+            console.log(data)
+            setDisplayTable(data.result)
+        } catch (error) {
+            console.error(error)
+        } finally {
+            setCurrentFilters(localcurrentFilters)
+            setLoading(false)
+        }
     }
 
     function handleDetailHide(){
         setShowOffCanvas(false)
+        console.log(currentFilters)
     }
 
     // fetch once on mount
     useEffect(() => {
-        if (!recordTable) {
+        if (!displayTable) {
             void loadTable()
         }
     }, [])
-
-    useEffect(() => {
-        if (recordTable) {
-            setDisplayTable(recordTable)
-        }
-    }, [recordTable, tableRange])
 
     return (
         <>
@@ -121,11 +157,11 @@ export default function Dashboard() {
                             <thead>
                                 <tr>
                                     {VisibleInfo.map((element, index) => (
-                                        <>
+                                        <Fragment key={index}>
                                             {element != "ID" && (
-                                            <th key={index}>
+                                            <th>
                                                 <Dropdown>
-                                                    <Dropdown.Toggle variant="success" id="dropdown-basic">
+                                                    <Dropdown.Toggle variant="success" id={`dropdown-${element}`}>
                                                         {element}
                                                     </Dropdown.Toggle>
 
@@ -138,11 +174,13 @@ export default function Dashboard() {
                                             </th>
                                             )}
                                             {element == "ID" && (
-                                                <th key={index}>
-                                                    <Button variant="success">ID</Button>
+                                                <th>
+                                                    <Button variant="success" onClick={() => {
+                                                        void handleFilter("Nazwa Klienta","Cemit")
+                                                    }}>ID</Button>
                                                 </th>
                                             )}
-                                        </>
+                                        </Fragment>
                                     ))}
                                 </tr>
                             </thead>
