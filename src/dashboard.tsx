@@ -88,15 +88,20 @@ export default function Dashboard() {
             Column: column,
             Filter: filter,
         }
-        if(currentFilters.includes(thisFilter)){
-            throw new Error("Already filtering for this")
-        }
         let localcurrentFilters: Filter[] = [...currentFilters, thisFilter]
+        currentFilters.forEach(filter => {
+            if(filter.Column == thisFilter.Column){
+                if(filter.Filter == thisFilter.Filter){
+                    throw new Error("Already filtering for this.")
+                }else{
+                    localcurrentFilters = [...currentFilters.filter(filter => filter.Column != thisFilter.Column), thisFilter]
+                }
+            }
+        });
         let filteredcolumns: Record<string,string> = {}
         localcurrentFilters.forEach(filters => {
             filteredcolumns[filters.Column as keyof typeof filteredcolumns] = filters.Filter
         });
-        console.log(filteredcolumns)
         setLoading(true)
         try {
             const response = await fetch("//127.0.0.1/CRM/api/get_filtered_table.php", {
@@ -124,7 +129,6 @@ export default function Dashboard() {
 
     function handleDetailHide(){
         setShowOffCanvas(false)
-        console.log(currentFilters)
     }
 
     // fetch once on mount
