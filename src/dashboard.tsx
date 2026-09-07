@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useState } from "react"
 import { Button, Container, Dropdown, ListGroup, Nav, Navbar, Offcanvas, Table } from "react-bootstrap"
+import "./styles/bootstrap.min.css";
 
-//TODO: Implement sorting. Implement a way to upload CSV files. Implement task assigning. Do visual touch ups
+//TODO: Finish implementing sorting. Implement a way to upload CSV files. Implement task assigning.
 
 
 interface RecordRow {
@@ -129,6 +130,7 @@ export default function Dashboard() {
 
     function handleDetailHide(){
         setShowOffCanvas(false)
+        void handleFilter("Ostatnia Sesja","2026-05")
     }
 
     // fetch once on mount
@@ -140,7 +142,7 @@ export default function Dashboard() {
 
     return (
         <>
-            <Navbar expand="lg" className="bg-body-tertiary">
+            <Navbar expand="lg" className="navbar navbar-expand-lg bg-primary" data-bs-theme="dark" style={{borderRadius:"10px", margin:"20px"}}>
                 <Container>
                     <Navbar.Brand href="#">Cemit CRM</Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
@@ -192,7 +194,7 @@ export default function Dashboard() {
                                 {displayTable.map((row, index) => (
                                     <tr key={index} onClick={() => {
                                         void handleDetailClick(row["ID"])
-                                    }}>
+                                    }} className="table-light">
                                         {VisibleInfo.map((element, index) => (
                                             <td key={index}>{row[element as keyof RecordRow]}</td>
                                         ))}
