@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
-import { Button, Container, ListGroup, Nav, Navbar, Offcanvas, Table } from "react-bootstrap"
+import { Button, Container, Dropdown, ListGroup, Nav, Navbar, Offcanvas, Table } from "react-bootstrap"
 
-//TODO: Finish handleDetailClick, Implement sorting. Implement a way to upload CSV files. Implement task assigning. Do visual touch ups
+//TODO: Implement sorting. Implement a way to upload CSV files. Implement task assigning. Do visual touch ups
 
 
 interface RecordRow {
@@ -34,6 +34,8 @@ export default function Dashboard() {
     const [showOffCanvas, setShowOffCanvas] = useState<boolean>(false)
     const [currentTable, setCurrentTable] = useState<string | undefined>(undefined)
     const [currentRecordInfo, setCurrentRecordInfo] = useState<RecordRow | undefined>(undefined)
+    const VisibleInfo = ["ID","Nazwa","Nazwa Urządzenia","Nazwa Klienta", "System Operacyjny", "Wersja Streamera", "Ostatnia Sesja", "Ostatnio Online"]
+
 
     async function loadTable() {
         if (currentTable == undefined){
@@ -75,6 +77,10 @@ export default function Dashboard() {
         }
     }
 
+    async function handleFilter() {
+        
+    }
+
     function handleDetailHide(){
         setShowOffCanvas(false)
     }
@@ -96,7 +102,7 @@ export default function Dashboard() {
         <>
             <Navbar expand="lg" className="bg-body-tertiary">
                 <Container>
-                    <Navbar.Brand href="#">Cemit</Navbar.Brand>
+                    <Navbar.Brand href="#">Cemit CRM</Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
                         <Nav className="me-auto">
@@ -114,14 +120,30 @@ export default function Dashboard() {
                         <Table striped bordered hover>
                             <thead>
                                 <tr>
-                                    <th>ID</th>
-                                    <th>Nazwa</th>
-                                    <th>Nazwa Urządzenia</th>
-                                    <th>Nazwa Klienta</th>
-                                    <th>System Operacyjny</th>
-                                    <th>Wersja Streamera</th>
-                                    <th>Ostatnia Sesja</th>
-                                    <th>Ostatnio Online</th>
+                                    {VisibleInfo.map((element, index) => (
+                                        <>
+                                            {element != "ID" && (
+                                            <th key={index}>
+                                                <Dropdown>
+                                                    <Dropdown.Toggle variant="success" id="dropdown-basic">
+                                                        {element}
+                                                    </Dropdown.Toggle>
+
+                                                    <Dropdown.Menu>
+                                                        <Dropdown.Item href="#/action-1">Action</Dropdown.Item>
+                                                        <Dropdown.Item href="#/action-2">Another action</Dropdown.Item>
+                                                        <Dropdown.Item href="#/action-3">Something else</Dropdown.Item>
+                                                    </Dropdown.Menu>
+                                                </Dropdown>
+                                            </th>
+                                            )}
+                                            {element == "ID" && (
+                                                <th key={index}>
+                                                    <Button variant="success">ID</Button>
+                                                </th>
+                                            )}
+                                        </>
+                                    ))}
                                 </tr>
                             </thead>
                             <tbody>
@@ -129,14 +151,9 @@ export default function Dashboard() {
                                     <tr key={index} onClick={() => {
                                         void handleDetailClick(row["ID"])
                                     }}>
-                                        <td>{row["ID"]}</td>
-                                        <td>{row["Nazwa"]}</td>
-                                        <td>{row["Nazwa Urządzenia"]}</td>
-                                        <td>{row["Nazwa Klienta"]}</td>
-                                        <td>{row["System Operacyjny"]}</td>
-                                        <td>{row["Wersja Streamera"]}</td>
-                                        <td>{row["Ostatnia Sesja"]}</td>
-                                        <td>{row["Ostatnio Online"]}</td>
+                                        {VisibleInfo.map((element, index) => (
+                                            <td key={index}>{row[element as keyof RecordRow]}</td>
+                                        ))}
                                     </tr>
                                 ))}
                             </tbody>
