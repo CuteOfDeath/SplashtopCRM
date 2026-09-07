@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
-import { Button, Container, Nav, Navbar, Table } from "react-bootstrap"
+import { Button, Container, ListGroup, Nav, Navbar, Offcanvas, Table } from "react-bootstrap"
 
+//TODO: Finish handleDetailClick, Implement sorting. Implement a way to upload CSV files. Implement task assigning. Do visual touch ups
 
 
 interface RecordRow {
@@ -19,9 +20,10 @@ interface RecordRow {
 }
 
 interface TableQueryResult {
-    success: true
+    success: boolean
     table?: string
-    result: RecordRow[]
+    error?: string
+    result?: RecordRow[]
 }
 
 export default function Dashboard() {
@@ -31,7 +33,7 @@ export default function Dashboard() {
     const [displayTable, setDisplayTable] = useState<RecordRow[] | undefined>(undefined)
     const [showOffCanvas, setShowOffCanvas] = useState<boolean>(false)
     const [currentTable, setCurrentTable] = useState<string | undefined>(undefined)
-    const [currentRecordInfo, setRecordInfo] = useState<RecordRow | undefined>(undefined)
+    const [currentRecordInfo, setCurrentRecordInfo] = useState<RecordRow | undefined>(undefined)
 
     async function loadTable() {
         if (currentTable == undefined){
@@ -51,7 +53,9 @@ export default function Dashboard() {
     }
 
     async function handleDetailClick(id: number) {
-        try {
+        if (!showOffCanvas){
+            try {
+            console.log(id,currentTable)
             const response = await fetch("//127.0.0.1/CRM/api/get_record.php", {
                 method: "POST",
                 body: JSON.stringify({
@@ -60,12 +64,20 @@ export default function Dashboard() {
                 })
             })
             const data: TableQueryResult = await response.json()
-            
+            if (!response.ok || !data.success) {
+                throw new Error(data?.error)
+            }
+            setCurrentRecordInfo(data.result![0])
         } catch (error) {
             console.error(error)
         } finally {
             setShowOffCanvas(true)
         }
+        }
+    }
+
+    function handleDetailHide(){
+        setShowOffCanvas(false)
     }
 
     // fetch once on mount
@@ -99,34 +111,60 @@ export default function Dashboard() {
                 {loading && <p>Ładowanie...</p>}
 
                 {!loading && displayTable && (
-                    <Table striped bordered hover>
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Nazwa</th>
-                                <th>Nazwa Urządzenia</th>
-                                <th>Nazwa Klienta</th>
-                                <th>System Operacyjny</th>
-                                <th>Wersja Streamera</th>
-                                <th>Ostatnia Sesja</th>
-                                <th>Ostatnio Online</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {displayTable.map((row, index) => (
-                                <tr key={index}>
-                                    <td>{row["ID"]}</td>
-                                    <td>{row["Nazwa"]}</td>
-                                    <td>{row["Nazwa Urządzenia"]}</td>
-                                    <td>{row["Nazwa Klienta"]}</td>
-                                    <td>{row["System Operacyjny"]}</td>
-                                    <td>{row["Wersja Streamera"]}</td>
-                                    <td>{row["Ostatnia Sesja"]}</td>
-                                    <td>{row["Ostatnio Online"]}</td>
+                    <>
+                        <Table striped bordered hover>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nazwa</th>
+                                    <th>Nazwa Urządzenia</th>
+                                    <th>Nazwa Klienta</th>
+                                    <th>System Operacyjny</th>
+                                    <th>Wersja Streamera</th>
+                                    <th>Ostatnia Sesja</th>
+                                    <th>Ostatnio Online</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </Table>
+                            </thead>
+                            <tbody>
+                                {displayTable.map((row, index) => (
+                                    <tr key={index} onClick={() => {
+                                        void handleDetailClick(row["ID"])
+                                    }}>
+                                        <td>{row["ID"]}</td>
+                                        <td>{row["Nazwa"]}</td>
+                                        <td>{row["Nazwa Urządzenia"]}</td>
+                                        <td>{row["Nazwa Klienta"]}</td>
+                                        <td>{row["System Operacyjny"]}</td>
+                                        <td>{row["Wersja Streamera"]}</td>
+                                        <td>{row["Ostatnia Sesja"]}</td>
+                                        <td>{row["Ostatnio Online"]}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </Table>
+                        <Offcanvas show={showOffCanvas} onHide={handleDetailHide}>
+                                <Offcanvas.Header closeButton>
+                                    <Offcanvas.Title>{currentRecordInfo?.Nazwa}</Offcanvas.Title>
+                                </Offcanvas.Header>
+                                <Offcanvas.Body>
+                                    <ListGroup>
+                                        <ListGroup.Item>Nazwa: {currentRecordInfo?.Nazwa}</ListGroup.Item>
+                                        <ListGroup.Item>Nazwa Urządzenia: {currentRecordInfo?.["Nazwa Urządzenia"]}</ListGroup.Item>
+                                        <ListGroup.Item>Nazwa Klienta: {currentRecordInfo?.["Nazwa Klienta"]}</ListGroup.Item>
+                                        <ListGroup.Item>System Operacyjny: {currentRecordInfo?.["System Operacyjny"]}</ListGroup.Item>
+                                        <ListGroup.Item>Wersja Streamera: {currentRecordInfo?.["Wersja Streamera"]}</ListGroup.Item>
+                                        <ListGroup.Item>Adres IP: {currentRecordInfo?.["Adres IP"]}</ListGroup.Item>
+                                        <ListGroup.Item>Data ostatniej sesji: {currentRecordInfo?.["Ostatnia Sesja"]}</ListGroup.Item>
+                                        <ListGroup.Item>Data ostatniego zalogowania: {currentRecordInfo?.["Ostatnio Online"]}</ListGroup.Item>
+                                        <ListGroup.Item>Email ostatniego zalogowanego użytkownika: {currentRecordInfo?.["Ostatnio Zalogowany"]}</ListGroup.Item>
+                                        <ListGroup.Item>Adres IP LAN: {currentRecordInfo?.["Adres IP LAN"]}</ListGroup.Item>
+                                    </ListGroup>
+                                    <p>Notatka:<br/>
+                                        {currentRecordInfo?.Notatka}
+                                    </p>
+                                </Offcanvas.Body>
+                        </Offcanvas>
+                    </>
                 )}
             </Container>
         </>
