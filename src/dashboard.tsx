@@ -31,17 +31,27 @@ interface TableQueryResult {
     table?: string
     error?: string
     result?: RecordRow[]
+    count: number
+}
+
+interface PaginationValues {
+    current: number
+    last: number
 }
 
 export default function Dashboard() {
+    const DISPLAYEDROWCOUNT = 50
     const [loading, setLoading] = useState<boolean>(true)
-    const [tableRange, setTableRange] = useState<[number, number]>([0, 50])
+    const [tableRange, setTableRange] = useState<[number, number]>([0, DISPLAYEDROWCOUNT])
     const [displayTable, setDisplayTable] = useState<RecordRow[] | undefined>(undefined)
     const [showOffCanvas, setShowOffCanvas] = useState<boolean>(false)
     const [currentTable, setCurrentTable] = useState<string | undefined>(undefined)
     const [currentRecordInfo, setCurrentRecordInfo] = useState<RecordRow | undefined>(undefined)
     const [currentFilters, setCurrentFilters] = useState<Filter[]>([])
     const [currentSort, setCurrentSort] = useState<boolean>(true) //false = desc, true = asc
+    const [currentPos, setCurrentPos] = useState<PaginationValues>()
+    const [rowCount, setRowCount] = useState<number>(0)
+    const [allowNull, setAllowNull] = useState<boolean>(true)
     const VisibleInfo = ["ID","Nazwa","Nazwa Urządzenia","Nazwa Klienta", "System Operacyjny", "Wersja Streamera", "Ostatnia Sesja", "Ostatnio Online"]
     const propsKeys: (keyof RecordRow)[] = ['Nazwa','Nazwa Urządzenia','Nazwa Klienta','System Operacyjny','Wersja Streamera','Adres IP','Ostatnia Sesja','Ostatnio Online','Ostatnio Zalogowany','Adres IP LAN','Notatka'];
 
@@ -54,6 +64,8 @@ export default function Dashboard() {
                 const data: TableQueryResult = await response.json()
                 setDisplayTable(data.result)
                 setCurrentTable(data.table)
+                setRowCount(data.count)
+                handleScrollBar(undefined,data.count)
             } catch (error) {
                 console.error(error)
             } finally {
@@ -113,14 +125,17 @@ export default function Dashboard() {
                     columns: filteredcolumns,
                     sort: currentSort,
                     range: tableRange,
+                    allow_null: allowNull
                 })
             })
             const data: TableQueryResult = await response.json()
             if (!response.ok || !data.success) {
                 throw new Error(data?.error)
             }
-            console.log(data)
             setDisplayTable(data.result)
+            setRowCount(data.count)
+            handleScrollBar(undefined,data.count)
+            setTableRange([0,DISPLAYEDROWCOUNT])
         } catch (error) {
             console.error(error)
         } finally {
@@ -129,21 +144,21 @@ export default function Dashboard() {
         }
     }
 
-    async function reloadTable(sort?:boolean, range?:[number,number], fullclean?:boolean) {
+    async function reloadTable(sort?:boolean, range?:[number,number],allownull?: boolean, fullclean?:boolean) {
         let localsort = sort == undefined? currentSort : sort
         let filteredcolumns: Record<string,string> = {}
         let localrange = range == undefined? tableRange : range
+        let localallownul = allownull == undefined? allowNull : allownull
         if(fullclean){
             setCurrentSort(true)
             setCurrentFilters([])
-            setTableRange([0,50])
+            setTableRange([0,DISPLAYEDROWCOUNT])
             localsort = true
-            localrange = [0,50]
+            localrange = [0,DISPLAYEDROWCOUNT]
         }else{
             currentFilters.forEach(filters => {
                 filteredcolumns[filters.Column as keyof typeof filteredcolumns] = filters.Filter
             });
-            console.log("sigma")
         }
         setLoading(true)
         try {
@@ -154,18 +169,81 @@ export default function Dashboard() {
                     columns: filteredcolumns,
                     sort: localsort,
                     range: localrange,
+                    allow_null: localallownul
                 })
             })
             const data: TableQueryResult = await response.json()
             if (!response.ok || !data.success) {
                 throw new Error(data?.error)
             }
-            console.log(data)
             setDisplayTable(data.result)
+            setTableRange(localrange)
+            setRowCount(data.count)
+            if(fullclean){
+                handleScrollBar(undefined,data.count)
+            }
         } catch (error) {
             console.error(error)
         } finally {
             setLoading(false)
+        }
+    }
+
+    function calculateTableRange(pos: PaginationValues): [number,number] {
+        return [DISPLAYEDROWCOUNT * pos.current,  DISPLAYEDROWCOUNT * pos.current + DISPLAYEDROWCOUNT]
+    }
+
+    function handleScrollBar(movement?: string, rowCount?: number){
+        if(movement && currentPos != undefined){
+            switch(movement){
+                case("prev"):
+                    let prevvalue = (currentPos!.current - 1 <= 0)? 0 : currentPos!.current - 1
+                    let prevPos = {
+                        current: prevvalue,
+                        last: currentPos!.last
+                    }
+                    setCurrentPos(prevPos)
+                    reloadTable(undefined,calculateTableRange(prevPos))
+                    break
+                    
+                case("next"):
+                    let nextvalue = (currentPos!.current + 1 >= currentPos.last)?  currentPos!.last : currentPos!.current + 1
+                    let nextPos: PaginationValues = {
+                        current: nextvalue,
+                        last: currentPos!.last
+                    }
+                    setCurrentPos(nextPos)
+                    reloadTable(undefined,calculateTableRange(nextPos))
+                    break
+
+                case("last"):
+                    let lastPos: PaginationValues = {
+                        current: currentPos!.last,
+                        last: currentPos!.last
+                    }
+                    setCurrentPos(lastPos)
+                    reloadTable(undefined,calculateTableRange(lastPos))
+                    break
+
+                case("first"):
+                    let firstPos: PaginationValues = {
+                        current: 0,
+                        last: currentPos!.last
+                    }
+                    setCurrentPos(firstPos)
+                    reloadTable(undefined,calculateTableRange(firstPos))
+                    break
+            }
+        }else{
+            if(rowCount){
+                let pageAmount = Math.ceil(rowCount / DISPLAYEDROWCOUNT) - 1
+                let newPos: PaginationValues = {
+                    current: 0,
+                    last: pageAmount,
+                }
+                setRowCount(rowCount)  
+                setCurrentPos(newPos)
+            }
         }
     }
 
@@ -212,7 +290,10 @@ export default function Dashboard() {
                         <Container style={{borderRadius:"5px", padding:"1%", marginBottom:"1%"}} className="bg-light" fluid>
                             <Row>
                                 <Col md="auto">
-                                    <Button variant="danger" onClick={() => reloadTable(undefined,undefined,true)}>Wyczyść Filtry</Button>
+                                    
+                                </Col>
+                                <Col md="auto">
+                                    <Button variant="danger" onClick={() => reloadTable(undefined,undefined,undefined,true)}>Wyczyść Filtry</Button>
                                 </Col>
                                 <Col md="auto">
                                     <InputGroup>
@@ -227,24 +308,30 @@ export default function Dashboard() {
                                             }} active={currentSort === false}>Malejąco</Button>
                                     </InputGroup>
                                 </Col>
-                                <Col>
+                                <Col md="auto">
                                     <Pagination>
-                                        <Pagination.First />
-                                        <Pagination.Prev />
-                                        <Pagination.Item>{1}</Pagination.Item>
-                                        <Pagination.Ellipsis />
+                                        <Pagination.First onClick={() => handleScrollBar("first")}/>
+                                        <Pagination.Prev onClick={() => handleScrollBar("prev")}/>
 
-                                        <Pagination.Item>{10}</Pagination.Item>
-                                        <Pagination.Item>{11}</Pagination.Item>
-                                        <Pagination.Item active>{12}</Pagination.Item>
-                                        <Pagination.Item>{13}</Pagination.Item>
-                                        <Pagination.Item>{14}</Pagination.Item>
+                                        <Pagination.Item>{currentPos!.current + 1}/{currentPos!.last + 1}</Pagination.Item>
 
-                                        <Pagination.Ellipsis />
-                                        <Pagination.Item>{20}</Pagination.Item>
-                                        <Pagination.Next />
-                                        <Pagination.Last />
+                                        <Pagination.Next onClick={() => handleScrollBar("next")}/>
+                                        <Pagination.Last onClick={() => handleScrollBar("last")}/>
                                     </Pagination>
+                                </Col>
+                                <Col md="auto">
+                                    <InputGroup>
+                                            <InputGroup.Text className="bg-secondary">{rowCount} Rekordów</InputGroup.Text>
+                                    </InputGroup>
+                                </Col>
+                                <Col md="auto">
+                                    <InputGroup>
+                                            <InputGroup.Checkbox checked={allowNull} onChange={() => {
+                                                void reloadTable(undefined,undefined,!allowNull)
+                                                setAllowNull(!allowNull)
+                                            }}/>
+                                            <InputGroup.Text>Wyświetlaj puste wartości</InputGroup.Text>
+                                    </InputGroup>
                                 </Col>
                             </Row>
                         </Container>
