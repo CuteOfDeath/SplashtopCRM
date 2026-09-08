@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useState } from "react"
-import { Button, Container, Dropdown, ListGroup, Nav, Navbar, Offcanvas, Table } from "react-bootstrap"
+import { Button, Container, Dropdown, ListGroup, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination } from "react-bootstrap"
+import { Search } from "lucide-react";
 import "./styles/bootstrap.min.css";
 
-//TODO: Finish implementing sorting. Implement a way to upload CSV files. Implement task assigning.
+//TODO: Implement form controls. Implement a way to upload CSV files. Implement task assigning.
 
 
 interface RecordRow {
@@ -44,7 +45,7 @@ export default function Dashboard() {
     const VisibleInfo = ["ID","Nazwa","Nazwa Urządzenia","Nazwa Klienta", "System Operacyjny", "Wersja Streamera", "Ostatnia Sesja", "Ostatnio Online"]
     const propsKeys: (keyof RecordRow)[] = ['Nazwa','Nazwa Urządzenia','Nazwa Klienta','System Operacyjny','Wersja Streamera','Adres IP','Ostatnia Sesja','Ostatnio Online','Ostatnio Zalogowany','Adres IP LAN','Notatka'];
 
-    async function loadTable() {
+    async function loadInitTable() {
         if (currentTable == undefined){
             try {
                 const response = await fetch("//127.0.0.1/CRM/api/view_latest_report.php", {
@@ -84,7 +85,7 @@ export default function Dashboard() {
         }
     }
 
-    async function handleFilter(column : string, filter: string) {
+    async function loadTable(column : string, filter: string) {
         let thisFilter: Filter = {
             Column: column,
             Filter: filter,
@@ -128,14 +129,64 @@ export default function Dashboard() {
         }
     }
 
+    async function reloadTable(sort?:boolean, range?:[number,number], fullclean?:boolean) {
+        let localsort = sort == undefined? currentSort : sort
+        let filteredcolumns: Record<string,string> = {}
+        let localrange = range == undefined? tableRange : range
+        if(fullclean){
+            setCurrentSort(true)
+            setCurrentFilters([])
+            setTableRange([0,50])
+            localsort = true
+            localrange = [0,50]
+        }else{
+            currentFilters.forEach(filters => {
+                filteredcolumns[filters.Column as keyof typeof filteredcolumns] = filters.Filter
+            });
+            console.log("sigma")
+        }
+        setLoading(true)
+        try {
+            const response = await fetch("//127.0.0.1/CRM/api/get_filtered_table.php", {
+                method: "POST",
+                body: JSON.stringify({
+                    table: currentTable,
+                    columns: filteredcolumns,
+                    sort: localsort,
+                    range: localrange,
+                })
+            })
+            const data: TableQueryResult = await response.json()
+            if (!response.ok || !data.success) {
+                throw new Error(data?.error)
+            }
+            console.log(data)
+            setDisplayTable(data.result)
+        } catch (error) {
+            console.error(error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
     function handleDetailHide(){
         setShowOffCanvas(false)
+    }
+
+    const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>, column: string) => {
+        e.preventDefault()
+        const input = new FormData(e.currentTarget).get("filterInput") as string;
+        void loadTable(column, input)
+    }
+
+    const checkForFilterValues = (element: string): string => {
+    return currentFilters.find((filter) => filter.Column === element)?.Filter ?? ""
     }
 
     // fetch once on mount
     useEffect(() => {
         if (!displayTable) {
-            void loadTable()
+            void loadInitTable()
         }
     }, [])
 
@@ -153,11 +204,50 @@ export default function Dashboard() {
                     </Navbar.Collapse>
                 </Container>
             </Navbar>
-            <Container>
+            <Container  style={{margin: "1%", maxWidth: "98%"}}>
                 {loading && <p>Ładowanie...</p>}
 
                 {!loading && displayTable && (
                     <>
+                        <Container style={{borderRadius:"5px", padding:"1%", marginBottom:"1%"}} className="bg-light" fluid>
+                            <Row>
+                                <Col md="auto">
+                                    <Button variant="danger" onClick={() => reloadTable(undefined,undefined,true)}>Wyczyść Filtry</Button>
+                                </Col>
+                                <Col md="auto">
+                                    <InputGroup>
+                                        <InputGroup.Text className="bg-secondary">Sortuj:</InputGroup.Text>
+                                        <Button variant="outline-primary" onClick={() => {
+                                            void reloadTable(true)
+                                            setCurrentSort(true)
+                                            }} active={currentSort === true}>Rosnąco</Button>
+                                        <Button variant="outline-primary" onClick={() => {
+                                            void reloadTable(false)
+                                            setCurrentSort(false)
+                                            }} active={currentSort === false}>Malejąco</Button>
+                                    </InputGroup>
+                                </Col>
+                                <Col>
+                                    <Pagination>
+                                        <Pagination.First />
+                                        <Pagination.Prev />
+                                        <Pagination.Item>{1}</Pagination.Item>
+                                        <Pagination.Ellipsis />
+
+                                        <Pagination.Item>{10}</Pagination.Item>
+                                        <Pagination.Item>{11}</Pagination.Item>
+                                        <Pagination.Item active>{12}</Pagination.Item>
+                                        <Pagination.Item>{13}</Pagination.Item>
+                                        <Pagination.Item>{14}</Pagination.Item>
+
+                                        <Pagination.Ellipsis />
+                                        <Pagination.Item>{20}</Pagination.Item>
+                                        <Pagination.Next />
+                                        <Pagination.Last />
+                                    </Pagination>
+                                </Col>
+                            </Row>
+                        </Container>
                         <Table striped bordered hover>
                             <thead>
                                 <tr>
@@ -165,15 +255,31 @@ export default function Dashboard() {
                                         <Fragment key={index}>
                                             {element != "ID" && (
                                             <th>
-                                                <Dropdown>
-                                                    <Dropdown.Toggle variant="success" id={`dropdown-${element}`}>
+                                                <Dropdown autoClose="outside">
+                                                    {(checkForFilterValues(element) == "") ? 
+                                                    <Dropdown.Toggle variant="success" id="search-dropdown">
                                                         {element}
-                                                    </Dropdown.Toggle>
+                                                    </Dropdown.Toggle> :  
+                                                    <Dropdown.Toggle variant="danger" id="search-dropdown">
+                                                        {element}
+                                                    </Dropdown.Toggle>}
 
-                                                    <Dropdown.Menu>
-                                                        <Dropdown.Item href="#/action-1">Action</Dropdown.Item>
-                                                        <Dropdown.Item href="#/action-2">Another action</Dropdown.Item>
-                                                        <Dropdown.Item href="#/action-3">Something else</Dropdown.Item>
+                                                    <Dropdown.Menu className="p-2" style={{ minWidth: "280px" }}>
+                                                        <Form onSubmit={(e) => handleSubmit(e,element)} id={element}>
+                                                        <InputGroup>
+                                                            <Form.Control
+                                                            type="text"
+                                                            placeholder="Wyszukaj..."
+                                                            autoFocus
+                                                            name="filterInput"
+                                                            defaultValue={checkForFilterValues(element)}
+                                                            />
+                                                            <Button type="submit" variant="primary">
+                                                            <Search size={16} />
+                                                            </Button>
+                                                        </InputGroup>
+
+                                                        </Form>
                                                     </Dropdown.Menu>
                                                 </Dropdown>
                                             </th>
