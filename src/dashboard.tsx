@@ -4,9 +4,10 @@ import { Search } from "lucide-react";
 import "./styles/bootstrap.min.css";
 
 //TODO: 
-//1. Implement a way to add CSV files.
-//2. Implement task assigning
-//3. Celebrate!
+//1. Implement the "Ostatnia Sesja" column to light up if last service was 1-3 months ago
+//2. Implement a way to add CSV files.
+//3. Implement task assigning
+//4. Celebrate!
 
 
 interface RecordRow {
