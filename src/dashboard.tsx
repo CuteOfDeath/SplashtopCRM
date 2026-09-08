@@ -1,9 +1,12 @@
 import { Fragment, useEffect, useState } from "react"
-import { Button, Container, Dropdown, ListGroup, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination } from "react-bootstrap"
+import { Button, Container, Dropdown, ListGroup, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination, DropdownMenu } from "react-bootstrap"
 import { Search } from "lucide-react";
 import "./styles/bootstrap.min.css";
 
-//TODO: Implement form controls. Implement a way to upload CSV files. Implement task assigning.
+//TODO: 
+//1. Implement a way to add CSV files.
+//2. Implement task assigning
+//3. Celebrate!
 
 
 interface RecordRow {
@@ -31,6 +34,7 @@ interface TableQueryResult {
     table?: string
     error?: string
     result?: RecordRow[]
+    reports?: string[]
     count: number
 }
 
@@ -45,6 +49,7 @@ export default function Dashboard() {
     const [tableRange, setTableRange] = useState<[number, number]>([0, DISPLAYEDROWCOUNT])
     const [displayTable, setDisplayTable] = useState<RecordRow[] | undefined>(undefined)
     const [showOffCanvas, setShowOffCanvas] = useState<boolean>(false)
+    const [allTables, setAllTables] = useState<string[] | undefined>(undefined)
     const [currentTable, setCurrentTable] = useState<string | undefined>(undefined)
     const [currentRecordInfo, setCurrentRecordInfo] = useState<RecordRow | undefined>(undefined)
     const [currentFilters, setCurrentFilters] = useState<Filter[]>([])
@@ -62,6 +67,9 @@ export default function Dashboard() {
                     method: "GET"
                 })
                 const data: TableQueryResult = await response.json()
+                if (!response.ok || !data.success) {
+                throw new Error(data?.error)
+                }
                 setDisplayTable(data.result)
                 setCurrentTable(data.table)
                 setRowCount(data.count)
@@ -144,11 +152,12 @@ export default function Dashboard() {
         }
     }
 
-    async function reloadTable(sort?:boolean, range?:[number,number],allownull?: boolean, fullclean?:boolean) {
+    async function reloadTable(sort?:boolean, range?:[number,number],allownull?: boolean, table?: string, fullclean?:boolean) {
         let localsort = sort == undefined? currentSort : sort
-        let filteredcolumns: Record<string,string> = {}
         let localrange = range == undefined? tableRange : range
         let localallownul = allownull == undefined? allowNull : allownull
+        let localtable = table == undefined? currentTable : table
+        let filteredcolumns: Record<string,string> = {}
         if(fullclean){
             setCurrentSort(true)
             setCurrentFilters([])
@@ -162,10 +171,10 @@ export default function Dashboard() {
         }
         setLoading(true)
         try {
-            const response = await fetch("//127.0.0.1/CRM/api/get_filtered_table.php", {
+            const response = await fetch("//127.0.0.1/CRM/api/get_filtered_report.php", {
                 method: "POST",
                 body: JSON.stringify({
-                    table: currentTable,
+                    table: localtable,
                     columns: filteredcolumns,
                     sort: localsort,
                     range: localrange,
@@ -187,6 +196,24 @@ export default function Dashboard() {
         } finally {
             setLoading(false)
         }
+    }
+
+    async function getTables() {
+        setLoading(true)
+        try {
+                const response = await fetch("//127.0.0.1/CRM/api/get_all_reports.php", {
+                    method: "GET"
+                })
+                const data: TableQueryResult = await response.json()
+                if (!response.ok || !data.success) {
+                throw new Error(data?.error)
+                }
+                setAllTables(data.reports)
+            } catch (error) {
+                console.error(error)
+            } finally {
+                setLoading(false)
+            }
     }
 
     function calculateTableRange(pos: PaginationValues): [number,number] {
@@ -266,6 +293,9 @@ export default function Dashboard() {
         if (!displayTable) {
             void loadInitTable()
         }
+        if (!allTables) {
+            void getTables()
+        }
     }, [])
 
     return (
@@ -290,10 +320,24 @@ export default function Dashboard() {
                         <Container style={{borderRadius:"5px", padding:"1%", marginBottom:"1%"}} className="bg-light" fluid>
                             <Row>
                                 <Col md="auto">
-                                    
+                                    <Dropdown>
+                                        <Dropdown.Toggle variant="primary" id="dropdown-reports">
+                                            {currentTable!.replace("data_","") || "Wybierz raport"}
+                                        </Dropdown.Toggle>
+                                        <Dropdown.Menu>
+                                            {allTables?.map((table, index) => (
+                                                <Dropdown.Item 
+                                                    key={index} 
+                                                    onClick={() => void reloadTable(undefined, undefined, undefined, table)}
+                                                >
+                                                    {table.replace("data_","")}
+                                                </Dropdown.Item>
+                                            ))}
+                                        </Dropdown.Menu>
+                                    </Dropdown>
                                 </Col>
                                 <Col md="auto">
-                                    <Button variant="danger" onClick={() => reloadTable(undefined,undefined,undefined,true)}>Wyczyść Filtry</Button>
+                                    <Button variant="danger" onClick={() => reloadTable(undefined,undefined,undefined,undefined,true)}>Wyczyść Filtry</Button>
                                 </Col>
                                 <Col md="auto">
                                     <InputGroup>
