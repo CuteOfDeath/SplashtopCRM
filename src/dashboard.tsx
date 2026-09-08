@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react"
-import { Button, Container, Dropdown, ListGroup, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination, DropdownMenu } from "react-bootstrap"
+import { Button, Container, Dropdown, ListGroup, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination} from "react-bootstrap"
 import { Search } from "lucide-react";
 import "./styles/bootstrap.min.css";
 
@@ -126,7 +126,7 @@ export default function Dashboard() {
         });
         setLoading(true)
         try {
-            const response = await fetch("//127.0.0.1/CRM/api/get_filtered_table.php", {
+            const response = await fetch("//127.0.0.1/CRM/api/get_filtered_report.php", {
                 method: "POST",
                 body: JSON.stringify({
                     table: currentTable,
