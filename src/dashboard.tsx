@@ -189,7 +189,7 @@ export default function Dashboard() {
             setDisplayTable(data.result)
             setTableRange(localrange)
             setRowCount(data.count)
-            if(fullclean){
+            if(!range){
                 handleScrollBar(undefined,data.count)
             }
         } catch (error) {
