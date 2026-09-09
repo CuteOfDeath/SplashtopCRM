@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useState } from "react"
 import { Button, Container, Dropdown, ListGroup, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination} from "react-bootstrap"
 import { Search } from "lucide-react";
-import "./styles/bootstrap.min.css";
+import { Link } from "react-router-dom";
+import "./styles/curealen.css";
 
 //TODO: 
-//1. Implement the "Ostatnia Sesja" column to light up if last service was 1-3 months ago
+//1. DONE(Implement the "Ostatnia Sesja" column to light up if last service was 1-3 months ago)
 //2. Implement a way to add CSV files.
 //3. Implement task assigning
 //4. Celebrate!
@@ -60,6 +61,8 @@ export default function Dashboard() {
     const [allowNull, setAllowNull] = useState<boolean>(true)
     const VisibleInfo = ["ID","Nazwa","Nazwa Urządzenia","Nazwa Klienta", "System Operacyjny", "Wersja Streamera", "Ostatnia Sesja", "Ostatnio Online"]
     const propsKeys: (keyof RecordRow)[] = ['Nazwa','Nazwa Urządzenia','Nazwa Klienta','System Operacyjny','Wersja Streamera','Adres IP','Ostatnia Sesja','Ostatnio Online','Ostatnio Zalogowany','Adres IP LAN','Notatka'];
+    const dangerThreshold = new Date().setMonth(new Date().getMonth() - 6) //6 months
+    const warningThreshold = new Date().setMonth(new Date().getMonth() - 3) // 3 months
 
     async function loadInitTable() {
         if (currentTable == undefined){
@@ -189,6 +192,7 @@ export default function Dashboard() {
             setDisplayTable(data.result)
             setTableRange(localrange)
             setRowCount(data.count)
+            setCurrentTable(localtable)
             if(!range){
                 handleScrollBar(undefined,data.count)
             }
@@ -279,6 +283,18 @@ export default function Dashboard() {
         setShowOffCanvas(false)
     }
 
+    function evaluateDate(date?: string) {
+        if (date) {
+            let typedate = Date.parse(date)
+            if (typedate <= dangerThreshold) {
+                return "table-danger"
+            } else if (typedate <= warningThreshold) {
+                return "table-warning"
+            }
+            return "table-light"
+        }
+    }
+
     const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>, column: string) => {
         e.preventDefault()
         const input = new FormData(e.currentTarget).get("filterInput") as string;
@@ -301,14 +317,14 @@ export default function Dashboard() {
 
     return (
         <>
-            <Navbar expand="lg" className="navbar navbar-expand-lg bg-primary" data-bs-theme="dark" style={{borderRadius:"10px", margin:"20px"}}>
+            <Navbar expand="lg" className="navbar navbar-expand-lg bg-primary" data-bs-theme="dark" style={{borderRadius: "10px", margin: "20px"}}>
                 <Container>
-                    <Navbar.Brand href="#">Cemit CRM</Navbar.Brand>
+                    <Navbar.Brand as={Link} to={"/"}>Cemit CRM</Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
                         <Nav className="me-auto">
-                            <Nav.Link href="#">Importuj CSV</Nav.Link>
-                            <Nav.Link href="#">Dodaj Aktywność</Nav.Link>
+                            <Nav.Link as={Link} to={"/import"}>Importuj CSV</Nav.Link>
+                            <Nav.Link as={Link} to={"/tasks"}>Dodaj Aktywność</Nav.Link>
                         </Nav>
                     </Navbar.Collapse>
                 </Container>
@@ -318,14 +334,18 @@ export default function Dashboard() {
 
                 {!loading && displayTable && (
                     <>
-                        <Container style={{borderRadius:"5px", padding:"1%", marginBottom:"1%"}} className="bg-light" fluid>
+                        <Container style={{borderRadius:"5px", padding:"1%", marginBottom:"1%"}} className="bg-secondary" fluid>
                             <Row>
                                 <Col md="auto">
                                     <Dropdown>
                                         <Dropdown.Toggle variant="primary" id="dropdown-reports">
-                                            {currentTable!.replace("data_","") || "Wybierz raport"}
+                                            {currentTable!.replace("data_","")}
                                         </Dropdown.Toggle>
-                                        <Dropdown.Menu>
+                                        <Dropdown.Menu style={{maxHeight:"300px", overflowY:"scroll"}}>
+                                            <Dropdown.Item onClick={() => void reloadTable(undefined, undefined, undefined, currentTable)}>
+                                                {currentTable!.replace("data_","")}
+                                            </Dropdown.Item>
+                                            <Dropdown.Divider/>
                                             {allTables?.map((table, index) => (
                                                 <Dropdown.Item 
                                                     key={index} 
@@ -342,7 +362,7 @@ export default function Dashboard() {
                                 </Col>
                                 <Col md="auto">
                                     <InputGroup>
-                                        <InputGroup.Text className="bg-secondary">Sortuj:</InputGroup.Text>
+                                        <InputGroup.Text className="bg-light">Sortuj:</InputGroup.Text>
                                         <Button variant="outline-primary" onClick={() => {
                                             void reloadTable(true)
                                             setCurrentSort(true)
@@ -366,7 +386,7 @@ export default function Dashboard() {
                                 </Col>
                                 <Col md="auto">
                                     <InputGroup>
-                                            <InputGroup.Text className="bg-secondary">{rowCount} Rekordów</InputGroup.Text>
+                                            <InputGroup.Text className="bg-light">{rowCount} Rekordów</InputGroup.Text>
                                     </InputGroup>
                                 </Col>
                                 <Col md="auto">
@@ -377,6 +397,9 @@ export default function Dashboard() {
                                             }}/>
                                             <InputGroup.Text>Wyświetlaj puste wartości</InputGroup.Text>
                                     </InputGroup>
+                                </Col>
+                                <Col>
+                                            
                                 </Col>
                             </Row>
                         </Container>
@@ -398,19 +421,18 @@ export default function Dashboard() {
 
                                                     <Dropdown.Menu className="p-2" style={{ minWidth: "280px" }}>
                                                         <Form onSubmit={(e) => handleSubmit(e,element)} id={element}>
-                                                        <InputGroup>
-                                                            <Form.Control
-                                                            type="text"
-                                                            placeholder="Wyszukaj..."
-                                                            autoFocus
-                                                            name="filterInput"
-                                                            defaultValue={checkForFilterValues(element)}
-                                                            />
-                                                            <Button type="submit" variant="primary">
-                                                            <Search size={16} />
-                                                            </Button>
-                                                        </InputGroup>
-
+                                                            <InputGroup>
+                                                                <Form.Control
+                                                                type="text"
+                                                                placeholder="Wyszukaj..."
+                                                                autoFocus
+                                                                name="filterInput"
+                                                                defaultValue={checkForFilterValues(element)}
+                                                                />
+                                                                <Button type="submit" variant="primary">
+                                                                <Search size={16} />
+                                                                </Button>
+                                                            </InputGroup>
                                                         </Form>
                                                     </Dropdown.Menu>
                                                 </Dropdown>
@@ -430,9 +452,14 @@ export default function Dashboard() {
                                     <tr key={index} onClick={() => {
                                         void handleDetailClick(row["ID"])
                                     }} className="table-light">
-                                        {VisibleInfo.map((element, index) => (
-                                            <td key={index}>{row[element as keyof RecordRow]}</td>
-                                        ))}
+                                        {VisibleInfo.map((element, index) => {
+                                            if (element == "Ostatnia Sesja" || element == "Ostatnio Online"){
+                                                return <td key={index} className={evaluateDate(row[element as keyof RecordRow]?.toString())}>{row[element as keyof RecordRow]}</td>
+                                            }else{
+                                                return <td key={index}>{row[element as keyof RecordRow]}</td>
+                                            }
+                                        }
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>

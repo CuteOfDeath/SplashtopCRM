@@ -1,6 +1,6 @@
 import { useState, useRef, type ChangeEvent, type CSSProperties, type FormEvent } from "react";
 
-// Point this at wherever import_csv_endpoint.php is served from
+
 const IMPORT_ENDPOINT = "//127.0.0.1/CRM/api/import_csv.php";
 
 type Status = "idle" | "uploading" | "success" | "error";
