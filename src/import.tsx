@@ -40,7 +40,7 @@ export default function ImportCSV() {
         method: "POST",
         body: formData,
       });
-
+      console.log(res.text())
       const data = await res.json();
 
       if (!res.ok || !data.success) {

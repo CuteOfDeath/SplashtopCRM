@@ -4,32 +4,13 @@ import { Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import "./styles/curealen.css";
 
-//TODO: 
-//1. DONE(Implement the "Ostatnia Sesja" column to light up if last service was 1-3 months ago)
-//2. Implement a way to add CSV files.
-//3. Implement task assigning
-//4. Celebrate!
-
-
-interface RecordRow {
-    "ID": number
-    "Nazwa": string
-    "Nazwa Urządzenia": string
-    "Nazwa Klienta": string
-    "System Operacyjny": string
-    "Wersja Streamera": string
-    "Adres IP"?: string
-    "Ostatnia Sesja": string
-    "Ostatnio Online": string
-    "Ostatnio Zalogowany"? : string,
-    "Adres IP LAN"? : string
-    "Notatka"?: string
-}
 
 interface Filter {
     Column : string
     Filter: string
 }
+
+type RecordRow = Record<string, string | number | null>
 
 interface TableQueryResult {
     success: boolean
@@ -59,10 +40,9 @@ export default function Dashboard() {
     const [currentPos, setCurrentPos] = useState<PaginationValues>()
     const [rowCount, setRowCount] = useState<number>(0)
     const [allowNull, setAllowNull] = useState<boolean>(true)
-    const VisibleInfo = ["ID","Nazwa","Nazwa Urządzenia","Nazwa Klienta", "System Operacyjny", "Wersja Streamera", "Ostatnia Sesja", "Ostatnio Online"]
-    const propsKeys: (keyof RecordRow)[] = ['Nazwa','Nazwa Urządzenia','Nazwa Klienta','System Operacyjny','Wersja Streamera','Adres IP','Ostatnia Sesja','Ostatnio Online','Ostatnio Zalogowany','Adres IP LAN','Notatka'];
-    const dangerThreshold = new Date().setMonth(new Date().getMonth() - 6) //6 months
-    const warningThreshold = new Date().setMonth(new Date().getMonth() - 3) // 3 months
+    const [currentColumns, setCurrentColumns] = useState<string[]>([])
+    const dangerThreshold = new Date().setMonth(new Date().getMonth() - 3)
+    const warningThreshold = new Date().setMonth(new Date().getMonth() - 1) // 1 months
 
     async function loadInitTable() {
         if (currentTable == undefined){
@@ -70,10 +50,11 @@ export default function Dashboard() {
                 const response = await fetch("//127.0.0.1/CRM/api/view_latest_report.php", {
                     method: "GET"
                 })
-                const data: TableQueryResult = await response.json()
+                const data : TableQueryResult = await response.json()
                 if (!response.ok || !data.success) {
                 throw new Error(data?.error)
                 }
+                setCurrentColumns(Object.keys(data.result![0]))
                 setDisplayTable(data.result)
                 setCurrentTable(data.table)
                 setRowCount(data.count)
@@ -140,10 +121,11 @@ export default function Dashboard() {
                     allow_null: allowNull
                 })
             })
-            const data: TableQueryResult = await response.json()
+            const data = await response.json()
             if (!response.ok || !data.success) {
                 throw new Error(data?.error)
             }
+            setCurrentColumns(Object.keys(data.result![0]))
             setDisplayTable(data.result)
             setRowCount(data.count)
             handleScrollBar(undefined,data.count)
@@ -185,10 +167,11 @@ export default function Dashboard() {
                     allow_null: localallownul
                 })
             })
-            const data: TableQueryResult = await response.json()
+            const data = await response.json()
             if (!response.ok || !data.success) {
                 throw new Error(data?.error)
             }
+            setCurrentColumns(Object.keys(data.result![0]))
             setDisplayTable(data.result)
             setTableRange(localrange)
             setRowCount(data.count)
@@ -295,7 +278,7 @@ export default function Dashboard() {
         }
     }
 
-    const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>, column: string) => {
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>, column: string) => {
         e.preventDefault()
         const input = new FormData(e.currentTarget).get("filterInput") as string;
         void loadTable(column, input)
@@ -406,9 +389,8 @@ export default function Dashboard() {
                         <Table striped bordered hover>
                             <thead>
                                 <tr>
-                                    {VisibleInfo.map((element, index) => (
+                                    {currentColumns.map((element, index) => (
                                         <Fragment key={index}>
-                                            {element != "ID" && (
                                             <th>
                                                 <Dropdown autoClose="outside">
                                                     {(checkForFilterValues(element) == "") ? 
@@ -437,12 +419,6 @@ export default function Dashboard() {
                                                     </Dropdown.Menu>
                                                 </Dropdown>
                                             </th>
-                                            )}
-                                            {element == "ID" && (
-                                                <th>
-                                                    <Button variant="success">ID</Button>
-                                                </th>
-                                            )}
                                         </Fragment>
                                     ))}
                                 </tr>
@@ -450,13 +426,13 @@ export default function Dashboard() {
                             <tbody>
                                 {displayTable.map((row, index) => (
                                     <tr key={index} onClick={() => {
-                                        void handleDetailClick(row["ID"])
+                                        void handleDetailClick(Number(row["id"]))
                                     }} className="table-light">
-                                        {VisibleInfo.map((element, index) => {
+                                        {currentColumns.map((element, index) => {
                                             if (element == "Ostatnia Sesja" || element == "Ostatnio Online"){
-                                                return <td key={index} className={evaluateDate(row[element as keyof RecordRow]?.toString())}>{row[element as keyof RecordRow]}</td>
+                                                return <td key={index} className={evaluateDate(row[element]?.toString())}>{row[element]}</td>
                                             }else{
-                                                return <td key={index}>{row[element as keyof RecordRow]}</td>
+                                                return <td key={index}>{row[element]}</td>
                                             }
                                         }
                                         )}
@@ -470,7 +446,7 @@ export default function Dashboard() {
                                 </Offcanvas.Header>
                                 <Offcanvas.Body>
                                     <ListGroup>
-                                        {propsKeys.map((key, index) => (
+                                        {Object.keys(currentRecordInfo ?? {}).map((key, index) => (
                                             <ListGroup.Item key={index}>{key}: {currentRecordInfo?.[key]}</ListGroup.Item>
                                         ))}
                                     </ListGroup>
