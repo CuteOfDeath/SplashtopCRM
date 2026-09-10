@@ -436,7 +436,7 @@ export default function Dashboard() {
                                                 void reloadTable(undefined,undefined,!allowNull)
                                                 setAllowNull(!allowNull)
                                             }}/>
-                                            <InputGroup.Text>Wyświetlaj puste wartości</InputGroup.Text>
+                                            <InputGroup.Text>Pokazuj NULL przy filtrowaniu</InputGroup.Text>
                                     </InputGroup>
                                 </Col>
                                 <Col>
