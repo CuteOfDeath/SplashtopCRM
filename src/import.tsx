@@ -40,7 +40,6 @@ export default function ImportCSV() {
         method: "POST",
         body: formData,
       });
-      console.log(res.text())
       const data = await res.json();
 
       if (!res.ok || !data.success) {
@@ -70,7 +69,6 @@ export default function ImportCSV() {
                     <Navbar.Collapse id="basic-navbar-nav">
                         <Nav className="me-auto">
                             <Nav.Link as={Link} to={"/import"}>Importuj CSV</Nav.Link>
-                            <Nav.Link as={Link} to={"/tasks"}>Dodaj Aktywność</Nav.Link>
                         </Nav>
                     </Navbar.Collapse>
                 </Container>

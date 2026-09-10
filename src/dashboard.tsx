@@ -28,6 +28,7 @@ interface PaginationValues {
 
 export default function Dashboard() {
     const DISPLAYEDROWCOUNT = 50
+    const DISPLAYEDCOLUMNCOUNT = 4
     const [loading, setLoading] = useState<boolean>(true)
     const [tableRange, setTableRange] = useState<[number, number]>([0, DISPLAYEDROWCOUNT])
     const [displayTable, setDisplayTable] = useState<RecordRow[] | undefined>(undefined)
@@ -41,6 +42,8 @@ export default function Dashboard() {
     const [rowCount, setRowCount] = useState<number>(0)
     const [allowNull, setAllowNull] = useState<boolean>(true)
     const [currentColumns, setCurrentColumns] = useState<string[]>([])
+    const [displayedColumns, setDisplayedColumns] = useState<string[]>([])
+    const [mostRecentTable, setMostRecentTable] = useState<string | undefined>(undefined)
     const dangerThreshold = new Date().setMonth(new Date().getMonth() - 3)
     const warningThreshold = new Date().setMonth(new Date().getMonth() - 1) // 1 months
 
@@ -54,9 +57,13 @@ export default function Dashboard() {
                 if (!response.ok || !data.success) {
                 throw new Error(data?.error)
                 }
-                setCurrentColumns(Object.keys(data.result![0]))
+                let returned_columns = Object.keys(data.result![0])
+                let clamped_columns = returned_columns.slice(0, DISPLAYEDCOLUMNCOUNT)
+                setCurrentColumns(returned_columns)
+                setDisplayedColumns(clamped_columns)
                 setDisplayTable(data.result)
                 setCurrentTable(data.table)
+                setMostRecentTable(data.table)
                 setRowCount(data.count)
                 handleScrollBar(undefined,data.count)
             } catch (error) {
@@ -125,7 +132,7 @@ export default function Dashboard() {
             if (!response.ok || !data.success) {
                 throw new Error(data?.error)
             }
-            setCurrentColumns(Object.keys(data.result![0]))
+            setCurrentColumns(Object.keys(data.result[0]))
             setDisplayTable(data.result)
             setRowCount(data.count)
             handleScrollBar(undefined,data.count)
@@ -172,6 +179,12 @@ export default function Dashboard() {
                 throw new Error(data?.error)
             }
             setCurrentColumns(Object.keys(data.result![0]))
+            if (table) {
+                let returned_columns = Object.keys(data.result![0])
+                let clamped_columns = returned_columns.slice(0, DISPLAYEDCOLUMNCOUNT)
+                setCurrentColumns(returned_columns)
+                setDisplayedColumns(clamped_columns)
+            }
             setDisplayTable(data.result)
             setTableRange(localrange)
             setRowCount(data.count)
@@ -277,6 +290,13 @@ export default function Dashboard() {
             return "table-light"
         }
     }
+    function addAfter(array: string[], index: number, newItem: string) {
+    return [
+        ...array.slice(0, index),
+        newItem,
+        ...array.slice(index)
+        ];
+    }
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>, column: string) => {
         e.preventDefault()
@@ -307,7 +327,6 @@ export default function Dashboard() {
                     <Navbar.Collapse id="basic-navbar-nav">
                         <Nav className="me-auto">
                             <Nav.Link as={Link} to={"/import"}>Importuj CSV</Nav.Link>
-                            <Nav.Link as={Link} to={"/tasks"}>Dodaj Aktywność</Nav.Link>
                         </Nav>
                     </Navbar.Collapse>
                 </Container>
@@ -325,8 +344,8 @@ export default function Dashboard() {
                                             {currentTable!.replace("data_","")}
                                         </Dropdown.Toggle>
                                         <Dropdown.Menu style={{maxHeight:"300px", overflowY:"scroll"}}>
-                                            <Dropdown.Item onClick={() => void reloadTable(undefined, undefined, undefined, currentTable)}>
-                                                {currentTable!.replace("data_","")}
+                                            <Dropdown.Item onClick={() => void reloadTable(undefined, undefined, undefined, mostRecentTable)}>
+                                                {mostRecentTable!.replace("data_","")}
                                             </Dropdown.Item>
                                             <Dropdown.Divider/>
                                             {allTables?.map((table, index) => (
@@ -382,14 +401,37 @@ export default function Dashboard() {
                                     </InputGroup>
                                 </Col>
                                 <Col>
-                                            
+                                    <Dropdown>
+                                        <Dropdown.Toggle>
+                                            Wyświetlane kolumny:
+                                        </Dropdown.Toggle>
+                                        <Dropdown.Menu>
+                                            {currentColumns.map((element, index) => (
+                                                <Form key={index}>
+                                                    <InputGroup>
+                                                        <Form.Check 
+                                                        type="switch" 
+                                                        checked={displayedColumns.includes(element)} 
+                                                        label={element}
+                                                        onChange={() => {
+                                                            if (displayedColumns.includes(element)){
+                                                                setDisplayedColumns(displayedColumns.filter(column => column !== element))
+                                                            }else{
+                                                                setDisplayedColumns(addAfter(displayedColumns,index -1,element)) 
+                                                            }
+                                                        }}/> 
+                                                    </InputGroup>
+                                                </Form>
+                                            ))}
+                                        </Dropdown.Menu>
+                                    </Dropdown>
                                 </Col>
                             </Row>
                         </Container>
                         <Table striped bordered hover>
                             <thead>
                                 <tr>
-                                    {currentColumns.map((element, index) => (
+                                    {displayedColumns.map((element, index) => (
                                         <Fragment key={index}>
                                             <th>
                                                 <Dropdown autoClose="outside">
@@ -428,7 +470,7 @@ export default function Dashboard() {
                                     <tr key={index} onClick={() => {
                                         void handleDetailClick(Number(row["id"]))
                                     }} className="table-light">
-                                        {currentColumns.map((element, index) => {
+                                        {displayedColumns.map((element, index) => {
                                             if (element == "Ostatnia Sesja" || element == "Ostatnio Online"){
                                                 return <td key={index} className={evaluateDate(row[element]?.toString())}>{row[element]}</td>
                                             }else{
