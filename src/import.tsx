@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState, type ChangeEvent, useRef, useEffect } from "react"
 import { Navbar, Container, Nav, Form, Button } from "react-bootstrap";
-import "./styles/curealen.css";
+import "./styles/bootstrap.min.css";
 
 export default function ImportCSV() {
     const [file, setFile] = useState<File | null>(null);

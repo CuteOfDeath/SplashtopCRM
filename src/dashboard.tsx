@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState } from "react"
 import { Button, Container, Dropdown, ListGroup, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination} from "react-bootstrap"
 import { Search } from "lucide-react";
 import { Link } from "react-router-dom";
-import "./styles/curealen.css";
+import "./styles/bootstrap.min.css";
 
 
 interface Filter {
@@ -29,6 +29,7 @@ interface PaginationValues {
 export default function Dashboard() {
     const DISPLAYEDROWCOUNT = 50
     const DISPLAYEDCOLUMNCOUNT = 4
+
     const [loading, setLoading] = useState<boolean>(true)
     const [tableRange, setTableRange] = useState<[number, number]>([0, DISPLAYEDROWCOUNT])
     const [displayTable, setDisplayTable] = useState<RecordRow[] | undefined>(undefined)
@@ -44,6 +45,8 @@ export default function Dashboard() {
     const [currentColumns, setCurrentColumns] = useState<string[]>([])
     const [displayedColumns, setDisplayedColumns] = useState<string[]>([])
     const [mostRecentTable, setMostRecentTable] = useState<string | undefined>(undefined)
+    const [activityAddStatus, setActivityAddStatus] = useState<string>("idle")
+
     const dangerThreshold = new Date().setMonth(new Date().getMonth() - 3)
     const warningThreshold = new Date().setMonth(new Date().getMonth() - 1) // 1 months
 
@@ -89,6 +92,7 @@ export default function Dashboard() {
                 throw new Error(data?.error)
             }
             setCurrentRecordInfo(data.result![0])
+            setActivityAddStatus("idle")
         } catch (error) {
             console.error(error)
         } finally {
@@ -216,6 +220,31 @@ export default function Dashboard() {
                 setLoading(false)
             }
     }
+
+    async function handleAddActivity(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault()
+        const dateInput = new FormData(e.currentTarget).get("dateInput") as string;
+        const timeInput = new FormData(e.currentTarget).get("timeInput") as string;
+        const noteInput = new FormData(e.currentTarget).get("noteInput") as string;
+        
+        try {
+                const response = await fetch("//127.0.0.1/CRM/api/set_activity.php", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        name: currentRecordInfo!["Nazwa"],
+                        meeting_date: dateInput + " " + timeInput,
+                        note: noteInput
+                    })
+                })
+                const data: TableQueryResult = await response.json()
+                if (!response.ok || !data.success) {
+                throw new Error(data?.error)
+                }
+            } catch (error) {
+                console.error(error)
+            }
+    }
+
 
     function calculateTableRange(pos: PaginationValues): [number,number] {
         return [DISPLAYEDROWCOUNT * pos.current,  DISPLAYEDROWCOUNT * pos.current + DISPLAYEDROWCOUNT]
@@ -492,6 +521,37 @@ export default function Dashboard() {
                                             <ListGroup.Item key={index}>{key}: {currentRecordInfo?.[key]}</ListGroup.Item>
                                         ))}
                                     </ListGroup>
+                                    <Form style={{marginTop:"3%", padding:"5%", borderRadius:"5px"}} className="bg-secondary" onSubmit={handleAddActivity}>
+                                        <Row style={{marginBottom: "10%", fontWeight: "bold"}}>
+                                            <Col>
+                                                <Form.Label>Dodaj Aktywność</Form.Label>
+                                            </Col>
+                                        </Row>
+                                        <Row>
+                                            <Form.Label>Data umówionej sesji:</Form.Label>
+                                        </Row>
+                                        <Row>
+                                            <Col>
+                                                <Form.Control type="date" name="dateInput"/>
+                                            </Col>
+                                            <Col>
+                                                <Form.Control type="time" name="timeInput"/>
+                                            </Col>
+                                        </Row>
+                                        <Row>
+                                            <Form.Label>Notatka:</Form.Label>
+                                        </Row>
+                                        <Row>
+                                            <Col>
+                                                <Form.Control as="textarea" name="noteInput"/>
+                                            </Col>
+                                        </Row>
+                                        <Row>
+                                            <Col>
+                                                <Button type="submit" style={{marginTop:"5%"}}>Dodaj</Button>
+                                            </Col>
+                                        </Row>
+                                    </Form>
                                 </Offcanvas.Body>
                         </Offcanvas>
                     </>
