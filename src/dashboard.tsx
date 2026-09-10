@@ -5,6 +5,10 @@ import { Link } from "react-router-dom";
 import "./styles/bootstrap.min.css";
 
 
+//Notes for the future when doing any other react project:
+//Please for the love of god do not put everything in the same file, create module scripts with exported functions.
+//
+
 interface Filter {
     Column : string
     Filter: string
