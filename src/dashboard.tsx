@@ -319,12 +319,18 @@ export default function Dashboard() {
             return "table-light"
         }
     }
+
     function addAfter(array: string[], index: number, newItem: string) {
     return [
         ...array.slice(0, index),
         newItem,
         ...array.slice(index)
         ];
+    }
+
+    function isDateLike(value: string | number | null): value is string {
+        if (typeof value !== "string") return false
+        return /^\d{4}-\d{2}-\d{2}$/.test(value) || /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)
     }
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>, column: string) => {
@@ -500,7 +506,7 @@ export default function Dashboard() {
                                         void handleDetailClick(Number(row["id"]))
                                     }} className="table-light">
                                         {displayedColumns.map((element, index) => {
-                                            if (element == "Ostatnia Sesja" || element == "Ostatnio Online"){
+                                            if (isDateLike(row[element])){
                                                 return <td key={index} className={evaluateDate(row[element]?.toString())}>{row[element]}</td>
                                             }else{
                                                 return <td key={index}>{row[element]}</td>
