@@ -41,6 +41,7 @@ export default function Dashboard() {
     const [allTables, setAllTables] = useState<string[] | undefined>(undefined)
     const [currentTable, setCurrentTable] = useState<string | undefined>(undefined)
     const [currentRecordInfo, setCurrentRecordInfo] = useState<RecordRow | undefined>(undefined)
+    //const [currentRecordActivity, setCurrentRecordActivity] = useState<RecordRow | undefined>(undefined)
     const [currentFilters, setCurrentFilters] = useState<Filter[]>([])
     const [currentSort, setCurrentSort] = useState<boolean>(true) //false = desc, true = asc
     const [currentPos, setCurrentPos] = useState<PaginationValues>()
@@ -57,7 +58,7 @@ export default function Dashboard() {
     async function loadInitTable() {
         if (currentTable == undefined){
             try {
-                const response = await fetch("//127.0.0.1/CRM/api/view_latest_report.php", {
+                const response = await fetch("https://intranet.cemit.pl/crmapi/view_latest_report.php", {
                     method: "GET"
                 })
                 const data : TableQueryResult = await response.json()
@@ -73,6 +74,7 @@ export default function Dashboard() {
                 setMostRecentTable(data.table)
                 setRowCount(data.count)
                 handleScrollBar(undefined,data.count)
+                console.log(activityAddStatus)
             } catch (error) {
                 console.error(error)
             } finally {
@@ -84,24 +86,25 @@ export default function Dashboard() {
     async function handleDetailClick(id: number) {
         if (!showOffCanvas){
             try {
-            const response = await fetch("//127.0.0.1/CRM/api/get_record.php", {
-                method: "POST",
-                body: JSON.stringify({
-                    id: id,
-                    table: currentTable
+                const response = await fetch("https://intranet.cemit.pl/crmapi/get_record.php", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        id: id,
+                        table: currentTable
+                    })
                 })
-            })
             const data: TableQueryResult = await response.json()
             if (!response.ok || !data.success) {
                 throw new Error(data?.error)
             }
-            setCurrentRecordInfo(data.result![0])
-            setActivityAddStatus("idle")
-        } catch (error) {
-            console.error(error)
-        } finally {
-            setShowOffCanvas(true)
-        }
+                setCurrentRecordInfo(data.result![0])
+                setActivityAddStatus("idle")
+            } catch (error) {
+                console.error(error)
+            }finally{
+                setShowOffCanvas(true)
+            }
+            
         }
     }
 
@@ -126,7 +129,7 @@ export default function Dashboard() {
         });
         setLoading(true)
         try {
-            const response = await fetch("//127.0.0.1/CRM/api/get_filtered_report.php", {
+            const response = await fetch("https://intranet.cemit.pl/crmapi/get_filtered_report.php", {
                 method: "POST",
                 body: JSON.stringify({
                     table: currentTable,
@@ -172,7 +175,7 @@ export default function Dashboard() {
         }
         setLoading(true)
         try {
-            const response = await fetch("//127.0.0.1/CRM/api/get_filtered_report.php", {
+            const response = await fetch("https://intranet.cemit.pl/crmapi/get_filtered_report.php", {
                 method: "POST",
                 body: JSON.stringify({
                     table: localtable,
@@ -197,7 +200,7 @@ export default function Dashboard() {
             setTableRange(localrange)
             setRowCount(data.count)
             setCurrentTable(localtable)
-            if(!range){
+            if(!range || sort){
                 handleScrollBar(undefined,data.count)
             }
         } catch (error) {
@@ -210,7 +213,7 @@ export default function Dashboard() {
     async function getTables() {
         setLoading(true)
         try {
-                const response = await fetch("//127.0.0.1/CRM/api/get_all_reports.php", {
+                const response = await fetch("https://intranet.cemit.pl/crmapi/get_all_reports.php", {
                     method: "GET"
                 })
                 const data: TableQueryResult = await response.json()
@@ -230,9 +233,9 @@ export default function Dashboard() {
         const dateInput = new FormData(e.currentTarget).get("dateInput") as string;
         const timeInput = new FormData(e.currentTarget).get("timeInput") as string;
         const noteInput = new FormData(e.currentTarget).get("noteInput") as string;
-        
+        setActivityAddStatus("loading")
         try {
-                const response = await fetch("//127.0.0.1/CRM/api/set_activity.php", {
+                const response = await fetch("https://intranet.cemit.pl/crmapi/set_activity.php", {
                     method: "POST",
                     body: JSON.stringify({
                         name: currentRecordInfo!["Nazwa"],
@@ -244,7 +247,10 @@ export default function Dashboard() {
                 if (!response.ok || !data.success) {
                 throw new Error(data?.error)
                 }
+                setActivityAddStatus("success")
+                reloadTable()
             } catch (error) {
+                setActivityAddStatus("error")
                 console.error(error)
             }
     }
@@ -361,11 +367,11 @@ export default function Dashboard() {
         <>
             <Navbar expand="lg" className="navbar navbar-expand-lg bg-primary" data-bs-theme="dark" style={{borderRadius: "10px", margin: "20px"}}>
                 <Container>
-                    <Navbar.Brand as={Link} to={"/"}>Cemit CRM</Navbar.Brand>
+                    <Navbar.Brand as={Link} to={"/crmstrona/"}>Cemit CRM</Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
                         <Nav className="me-auto">
-                            <Nav.Link as={Link} to={"/import"}>Importuj CSV</Nav.Link>
+                            <Nav.Link as={Link} to={"/crmstrona/import"}>Importuj CSV</Nav.Link>
                         </Nav>
                     </Navbar.Collapse>
                 </Container>
@@ -444,7 +450,7 @@ export default function Dashboard() {
                                         <Dropdown.Toggle>
                                             Wyświetlane kolumny:
                                         </Dropdown.Toggle>
-                                        <Dropdown.Menu>
+                                        <Dropdown.Menu style={{padding:"10px", maxWidth:"500px"}}>
                                             {currentColumns.map((element, index) => (
                                                 <Form key={index}>
                                                     <InputGroup>
@@ -521,7 +527,9 @@ export default function Dashboard() {
                                 ))}
                             </tbody>
                         </Table>
-                        <Offcanvas show={showOffCanvas} onHide={handleDetailHide}>
+                    </>
+                )}
+                <Offcanvas show={showOffCanvas} onHide={handleDetailHide}>
                                 <Offcanvas.Header closeButton>
                                     <Offcanvas.Title>{currentRecordInfo?.Nazwa}</Offcanvas.Title>
                                 </Offcanvas.Header>
@@ -558,14 +566,16 @@ export default function Dashboard() {
                                         </Row>
                                         <Row>
                                             <Col>
-                                                <Button type="submit" style={{marginTop:"5%"}}>Dodaj</Button>
+                                                <Button type="submit" style={{marginTop:"5%"}} disabled={activityAddStatus == "loading"}>Dodaj</Button>
+                                            </Col>
+                                            <Col>
+                                                {(activityAddStatus == "error") && <p style={{color:"red"}}>Coś poszło nie tak, sprawdź konsole.</p>}
+                                                {(activityAddStatus == "success") && <p style={{color:"green"}}>Aktywność dodana pomyślnie!</p>}
                                             </Col>
                                         </Row>
                                     </Form>
-                                </Offcanvas.Body>
-                        </Offcanvas>
-                    </>
-                )}
+                            </Offcanvas.Body>
+                    </Offcanvas>
             </Container>
         </>
     )

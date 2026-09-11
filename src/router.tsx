@@ -6,8 +6,8 @@ const Routing = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/import" element={<ImportCSV />} />
+        <Route path="/crmstrona/" element={<Dashboard />} />
+        <Route path="/crmstrona/import" element={<ImportCSV />} />
       </Routes>
     </Router>
   );

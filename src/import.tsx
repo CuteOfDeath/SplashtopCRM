@@ -64,11 +64,11 @@ export default function ImportCSV() {
         <>
             <Navbar expand="lg" className="navbar navbar-expand-lg bg-primary" data-bs-theme="dark" style={{borderRadius: "10px", margin: "20px"}}>
                 <Container>
-                    <Navbar.Brand as={Link} to={"/"}>Cemit CRM</Navbar.Brand>
+                    <Navbar.Brand as={Link} to={"/crmstrona/"}>Cemit CRM</Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
                         <Nav className="me-auto">
-                            <Nav.Link as={Link} to={"/import"}>Importuj CSV</Nav.Link>
+                            <Nav.Link as={Link} to={"/crmstrona/import"}>Importuj CSV</Nav.Link>
                         </Nav>
                     </Navbar.Collapse>
                 </Container>
