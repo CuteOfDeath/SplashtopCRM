@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useState } from "react"
-import { Button, Container, Dropdown, ListGroup, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination} from "react-bootstrap"
+import { act, Fragment, useEffect, useState } from "react"
+import { Button, Container, Dropdown, ListGroup, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination, Card} from "react-bootstrap"
 import { Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import "./styles/bootstrap.min.css";
@@ -25,6 +25,19 @@ interface TableQueryResult {
     count: number
 }
 
+interface ActivityRecords {
+    "Nazwa" : string,
+    "Data Dodania": string,
+    "Data Umówiona" : string,
+    "Notatka" : string
+}
+
+interface ActivityRecordResult {
+    success: boolean,
+    error?: string,
+    result?: ActivityRecords[]
+}
+
 interface PaginationValues {
     current: number
     last: number
@@ -32,7 +45,8 @@ interface PaginationValues {
 
 export default function Dashboard() {
     const DISPLAYEDROWCOUNT = 50
-    const DISPLAYEDCOLUMNCOUNT = 4
+    const DEFAULTCOLUMNS = ["id", "Nazwa", "Nazwa Urządzenia", "Nazwa Klienta", "Ostatnia Sesja", "Data Umówiona", "Notatka"]
+
 
     const [loading, setLoading] = useState<boolean>(true)
     const [tableRange, setTableRange] = useState<[number, number]>([0, DISPLAYEDROWCOUNT])
@@ -41,7 +55,7 @@ export default function Dashboard() {
     const [allTables, setAllTables] = useState<string[] | undefined>(undefined)
     const [currentTable, setCurrentTable] = useState<string | undefined>(undefined)
     const [currentRecordInfo, setCurrentRecordInfo] = useState<RecordRow | undefined>(undefined)
-    //const [currentRecordActivity, setCurrentRecordActivity] = useState<RecordRow | undefined>(undefined)
+    const [currentRecordActivity, setCurrentRecordActivity] = useState<ActivityRecords[] | undefined>(undefined)
     const [currentFilters, setCurrentFilters] = useState<Filter[]>([])
     const [currentSort, setCurrentSort] = useState<boolean>(true) //false = desc, true = asc
     const [currentPos, setCurrentPos] = useState<PaginationValues>()
@@ -51,6 +65,7 @@ export default function Dashboard() {
     const [displayedColumns, setDisplayedColumns] = useState<string[]>([])
     const [mostRecentTable, setMostRecentTable] = useState<string | undefined>(undefined)
     const [activityAddStatus, setActivityAddStatus] = useState<string>("idle")
+    const [OrderedColumns, setOrderedColumns] = useState<string[]>([])
 
     const dangerThreshold = new Date().setMonth(new Date().getMonth() - 3)
     const warningThreshold = new Date().setMonth(new Date().getMonth() - 1) // 1 months
@@ -66,15 +81,13 @@ export default function Dashboard() {
                 throw new Error(data?.error)
                 }
                 let returned_columns = Object.keys(data.result![0])
-                let clamped_columns = returned_columns.slice(0, DISPLAYEDCOLUMNCOUNT)
                 setCurrentColumns(returned_columns)
-                setDisplayedColumns(clamped_columns)
+                setDisplayedColumns(DEFAULTCOLUMNS)
                 setDisplayTable(data.result)
                 setCurrentTable(data.table)
                 setMostRecentTable(data.table)
                 setRowCount(data.count)
                 handleScrollBar(undefined,data.count)
-                console.log(activityAddStatus)
             } catch (error) {
                 console.error(error)
             } finally {
@@ -83,7 +96,7 @@ export default function Dashboard() {
         }
     }
 
-    async function handleDetailClick(id: number) {
+    async function handleDetailClick(id: number, name: string) {
         if (!showOffCanvas){
             try {
                 const response = await fetch("https://intranet.cemit.pl/crmapi/get_record.php", {
@@ -101,10 +114,24 @@ export default function Dashboard() {
                 setActivityAddStatus("idle")
             } catch (error) {
                 console.error(error)
+            }
+            try {
+                const response = await fetch("https://intranet.cemit.pl/crmapi/get_all_activity.php", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        name: name
+                    })
+                })
+                const data: ActivityRecordResult = await response.json()
+                if (!response.ok || !data.success) {
+                    throw new Error(data?.error)
+                }
+                setCurrentRecordActivity(data.result)
+            }catch (error){
+                console.error(error)
             }finally{
                 setShowOffCanvas(true)
             }
-            
         }
     }
 
@@ -117,7 +144,7 @@ export default function Dashboard() {
         currentFilters.forEach(filter => {
             if(filter.Column == thisFilter.Column){
                 if(filter.Filter == thisFilter.Filter){
-                    throw new Error("Already filtering for this.")
+                    console.log("already filtering for this")
                 }else{
                     localcurrentFilters = [...currentFilters.filter(filter => filter.Column != thisFilter.Column), thisFilter]
                 }
@@ -136,7 +163,8 @@ export default function Dashboard() {
                     columns: filteredcolumns,
                     sort: currentSort,
                     range: tableRange,
-                    allow_null: allowNull
+                    allow_null: allowNull,
+                    orderby: OrderedColumns
                 })
             })
             const data = await response.json()
@@ -162,10 +190,13 @@ export default function Dashboard() {
         let localallownul = allownull == undefined? allowNull : allownull
         let localtable = table == undefined? currentTable : table
         let filteredcolumns: Record<string,string> = {}
+        let localorderedcolumns = OrderedColumns
         if(fullclean){
             setCurrentSort(true)
             setCurrentFilters([])
             setTableRange([0,DISPLAYEDROWCOUNT])
+            setOrderedColumns([])
+            localorderedcolumns = []
             localsort = true
             localrange = [0,DISPLAYEDROWCOUNT]
         }else{
@@ -182,7 +213,8 @@ export default function Dashboard() {
                     columns: filteredcolumns,
                     sort: localsort,
                     range: localrange,
-                    allow_null: localallownul
+                    allow_null: localallownul,
+                    orderby: localorderedcolumns
                 })
             })
             const data = await response.json()
@@ -192,16 +224,15 @@ export default function Dashboard() {
             setCurrentColumns(Object.keys(data.result![0]))
             if (table) {
                 let returned_columns = Object.keys(data.result![0])
-                let clamped_columns = returned_columns.slice(0, DISPLAYEDCOLUMNCOUNT)
                 setCurrentColumns(returned_columns)
-                setDisplayedColumns(clamped_columns)
+                setDisplayedColumns(DEFAULTCOLUMNS)
             }
             setDisplayTable(data.result)
             setTableRange(localrange)
             setRowCount(data.count)
             setCurrentTable(localtable)
             if(!range || sort){
-                handleScrollBar(undefined,data.count)
+                handleScrollBar(undefined, data.count, !(fullclean || table))
             }
         } catch (error) {
             console.error(error)
@@ -260,7 +291,7 @@ export default function Dashboard() {
         return [DISPLAYEDROWCOUNT * pos.current,  DISPLAYEDROWCOUNT * pos.current + DISPLAYEDROWCOUNT]
     }
 
-    function handleScrollBar(movement?: string, rowCount?: number){
+    function handleScrollBar(movement?: string, rowCount?: number, preserveCurrent?: boolean){
         if(movement && currentPos != undefined){
             switch(movement){
                 case("prev"):
@@ -304,12 +335,11 @@ export default function Dashboard() {
         }else{
             if(rowCount){
                 let pageAmount = Math.ceil(rowCount / DISPLAYEDROWCOUNT) - 1
-                let newPos: PaginationValues = {
-                    current: 0,
+                setRowCount(rowCount)
+                setCurrentPos(prev => ({
+                    current: (preserveCurrent && prev) ? Math.min(prev.current, pageAmount) : 0,
                     last: pageAmount,
-                }
-                setRowCount(rowCount)  
-                setCurrentPos(newPos)
+                }))
             }
         }
     }
@@ -328,14 +358,6 @@ export default function Dashboard() {
             }
             return "table-light"
         }
-    }
-
-    function addAfter(array: string[], index: number, newItem: string) {
-    return [
-        ...array.slice(0, index),
-        newItem,
-        ...array.slice(index)
-        ];
     }
 
     function isDateLike(value: string | number | null): value is string {
@@ -462,7 +484,7 @@ export default function Dashboard() {
                                                             if (displayedColumns.includes(element)){
                                                                 setDisplayedColumns(displayedColumns.filter(column => column !== element))
                                                             }else{
-                                                                setDisplayedColumns(addAfter(displayedColumns,index -1,element)) 
+                                                                setDisplayedColumns(currentColumns.filter(col => col === element || displayedColumns.includes(col)))
                                                             }
                                                         }}/> 
                                                     </InputGroup>
@@ -490,18 +512,32 @@ export default function Dashboard() {
 
                                                     <Dropdown.Menu className="p-2" style={{ minWidth: "280px" }}>
                                                         <Form onSubmit={(e) => handleSubmit(e,element)} id={element}>
-                                                            <InputGroup>
-                                                                <Form.Control
-                                                                type="text"
-                                                                placeholder="Wyszukaj..."
-                                                                autoFocus
-                                                                name="filterInput"
-                                                                defaultValue={checkForFilterValues(element)}
-                                                                />
-                                                                <Button type="submit" variant="primary">
-                                                                <Search size={16} />
-                                                                </Button>
-                                                            </InputGroup>
+                                                            <Row>
+                                                                <InputGroup>
+                                                                    <Form.Control
+                                                                    type="text"
+                                                                    placeholder="Wyszukaj..."
+                                                                    autoFocus
+                                                                    name="filterInput"
+                                                                    defaultValue={checkForFilterValues(element)}
+                                                                    />
+                                                                    <Button type="submit" variant="primary">
+                                                                    <Search size={16} />
+                                                                    </Button>
+                                                                </InputGroup>
+                                                            </Row>
+                                                            <Row>
+                                                                <InputGroup>
+                                                                    <InputGroup.Checkbox checked={OrderedColumns.includes(element)} onChange={() => {
+                                                                        if (OrderedColumns.includes(element)){
+                                                                            setOrderedColumns(OrderedColumns.filter(column => column !== element))
+                                                                        }else{
+                                                                            setOrderedColumns([...OrderedColumns, element])
+                                                                        }
+                                                                    }}/>
+                                                                    <InputGroup.Text>Sortuj Kolumną</InputGroup.Text>
+                                                                </InputGroup>
+                                                            </Row>
                                                         </Form>
                                                     </Dropdown.Menu>
                                                 </Dropdown>
@@ -513,7 +549,7 @@ export default function Dashboard() {
                             <tbody>
                                 {displayTable.map((row, index) => (
                                     <tr key={index} onClick={() => {
-                                        void handleDetailClick(Number(row["id"]))
+                                        void handleDetailClick(Number(row["id"]),String(row["Nazwa"]))
                                     }} className="table-light">
                                         {displayedColumns.map((element, index) => {
                                             if (isDateLike(row[element])){
@@ -574,6 +610,21 @@ export default function Dashboard() {
                                             </Col>
                                         </Row>
                                     </Form>
+                                    <Container style={{marginTop:"20px"}}>
+                                        <h3>Historia Aktywności:</h3>
+                                        {currentRecordActivity?.map((activity : ActivityRecords) => (
+                                            <Card style={{marginTop:"20px"}}>
+                                                <Card.Header>Data Dodania: {activity["Data Dodania"]}</Card.Header>
+                                                <Card.Body>
+                                                    <Card.Title>{activity["Nazwa"]}</Card.Title>
+                                                    <Card.Text>
+                                                        Data Umówiona: {activity["Data Umówiona"]}<br/>
+                                                        Notatka: {activity["Notatka"]}
+                                                    </Card.Text>
+                                                </Card.Body>
+                                            </Card>
+                                        ))}
+                                    </Container>
                             </Offcanvas.Body>
                     </Offcanvas>
             </Container>
