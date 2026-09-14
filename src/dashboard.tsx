@@ -294,7 +294,6 @@ export default function Dashboard() {
     }
 
     async function handleActivityRealization(checked: boolean, id : number) {
-        console.log(id)
         if (!checked) {
             if (confirm("Czy napewno chcesz oznaczyć tą aktywność jako zrealizowaną?")){
                 try {
@@ -314,6 +313,29 @@ export default function Dashboard() {
                 console.error(error)
             }
             }
+        }
+    }
+
+    async function handleConservation() {
+        console.log("Sigma")
+        if (confirm("Czy napewno chcesz oznaczyć ten rekord jako poddany konserwacji?")){
+            try {
+            const response = await fetch(`${API_BASE}/set_conservation.php`, {
+                method: "POST",
+                body: JSON.stringify({
+                    id : currentRecordInfo!["id"],
+                    table: currentTable
+                })
+            })
+            const data: TableQueryResult = await response.json()
+            if (!response.ok || !data.success) {
+            throw new Error(data?.error)
+            }
+            setShowOffCanvas(false)
+            reloadTable()
+        } catch (error) {
+            console.error(error)
+        }
         }
     }
 
@@ -611,6 +633,7 @@ export default function Dashboard() {
                                     <Offcanvas.Title>{currentRecordInfo?.Nazwa}</Offcanvas.Title>
                                 </Offcanvas.Header>
                                 <Offcanvas.Body>
+                                    <Button onClick={() => handleConservation()} style={{marginBottom: "20px"}}>Oznacz jako poddane konserwacji</Button>
                                     <ListGroup>
                                         {Object.keys(currentRecordInfo ?? {}).map((key, index) => (
                                             <ListGroup.Item key={index}>{key}: {currentRecordInfo?.[key]}</ListGroup.Item>
