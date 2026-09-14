@@ -3,6 +3,8 @@ import { useState, type ChangeEvent, useRef, useEffect } from "react"
 import { Navbar, Container, Nav, Form, Button } from "react-bootstrap";
 import "./styles/bootstrap.min.css";
 
+const API_BASE = `${import.meta.env.BASE_URL}/crmapi`
+
 export default function ImportCSV() {
     const [file, setFile] = useState<File | null>(null);
     const [status, setStatus] = useState<string>("idle")
@@ -36,7 +38,7 @@ export default function ImportCSV() {
     setError("");
     setLoading(true)
     try {
-      const res = await fetch("//127.0.0.1/CRM/api/import_csv.php", {
+      const res = await fetch(`${API_BASE}/import_csv.php`, {
         method: "POST",
         body: formData,
       });
@@ -56,7 +58,7 @@ export default function ImportCSV() {
     }
     useEffect(() => {
         if (status == "success") {
-            navigate("/")
+            navigate(`${import.meta.env.BASE_URL}/`)
         }
     },[status])
 
@@ -64,11 +66,11 @@ export default function ImportCSV() {
         <>
             <Navbar expand="lg" className="navbar navbar-expand-lg bg-primary" data-bs-theme="dark" style={{borderRadius: "10px", margin: "20px"}}>
                 <Container>
-                    <Navbar.Brand as={Link} to={"/crmstrona/"}>Cemit CRM</Navbar.Brand>
+                    <Navbar.Brand as={Link} to={`${import.meta.env.BASE_URL}/`}>Cemit CRM</Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
                         <Nav className="me-auto">
-                            <Nav.Link as={Link} to={"/crmstrona/import"}>Importuj CSV</Nav.Link>
+                            <Nav.Link as={Link} to={`${import.meta.env.BASE_URL}/import`}>Importuj CSV</Nav.Link>
                         </Nav>
                     </Navbar.Collapse>
                 </Container>

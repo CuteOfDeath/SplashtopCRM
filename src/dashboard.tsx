@@ -43,6 +43,8 @@ interface PaginationValues {
     last: number
 }
 
+const API_BASE = `${import.meta.env.BASE_URL}/crmapi`
+
 export default function Dashboard() {
     const DISPLAYEDROWCOUNT = 50
     const DEFAULTCOLUMNS = ["id", "Nazwa", "Nazwa Urządzenia", "Nazwa Klienta", "Ostatnia Sesja", "Data Umówiona", "Notatka"]
@@ -73,7 +75,7 @@ export default function Dashboard() {
     async function loadInitTable() {
         if (currentTable == undefined){
             try {
-                const response = await fetch("https://intranet.cemit.pl/crmapi/view_latest_report.php", {
+                const response = await fetch(`${API_BASE}/view_latest_report.php`, {
                     method: "GET"
                 })
                 const data : TableQueryResult = await response.json()
@@ -99,7 +101,7 @@ export default function Dashboard() {
     async function handleDetailClick(id: number, name: string) {
         if (!showOffCanvas){
             try {
-                const response = await fetch("https://intranet.cemit.pl/crmapi/get_record.php", {
+                const response = await fetch(`${API_BASE}/get_record.php`, {
                     method: "POST",
                     body: JSON.stringify({
                         id: id,
@@ -116,7 +118,7 @@ export default function Dashboard() {
                 console.error(error)
             }
             try {
-                const response = await fetch("https://intranet.cemit.pl/crmapi/get_all_activity.php", {
+                const response = await fetch(`${API_BASE}/get_all_activity.php`, {
                     method: "POST",
                     body: JSON.stringify({
                         name: name
@@ -156,7 +158,7 @@ export default function Dashboard() {
         });
         setLoading(true)
         try {
-            const response = await fetch("https://intranet.cemit.pl/crmapi/get_filtered_report.php", {
+            const response = await fetch(`${API_BASE}/get_filtered_report.php`, {
                 method: "POST",
                 body: JSON.stringify({
                     table: currentTable,
@@ -206,7 +208,7 @@ export default function Dashboard() {
         }
         setLoading(true)
         try {
-            const response = await fetch("https://intranet.cemit.pl/crmapi/get_filtered_report.php", {
+            const response = await fetch(`${API_BASE}/get_filtered_report.php`, {
                 method: "POST",
                 body: JSON.stringify({
                     table: localtable,
@@ -244,7 +246,7 @@ export default function Dashboard() {
     async function getTables() {
         setLoading(true)
         try {
-                const response = await fetch("https://intranet.cemit.pl/crmapi/get_all_reports.php", {
+                const response = await fetch(`${API_BASE}/get_all_reports.php`, {
                     method: "GET"
                 })
                 const data: TableQueryResult = await response.json()
@@ -266,7 +268,7 @@ export default function Dashboard() {
         const noteInput = new FormData(e.currentTarget).get("noteInput") as string;
         setActivityAddStatus("loading")
         try {
-                const response = await fetch("https://intranet.cemit.pl/crmapi/set_activity.php", {
+                const response = await fetch(`${API_BASE}/set_activity.php`, {
                     method: "POST",
                     body: JSON.stringify({
                         name: currentRecordInfo!["Nazwa"],
@@ -389,11 +391,11 @@ export default function Dashboard() {
         <>
             <Navbar expand="lg" className="navbar navbar-expand-lg bg-primary" data-bs-theme="dark" style={{borderRadius: "10px", margin: "20px"}}>
                 <Container>
-                    <Navbar.Brand as={Link} to={"/crmstrona/"}>Cemit CRM</Navbar.Brand>
+                    <Navbar.Brand as={Link} to={`${import.meta.env.BASE_URL}/`}>Cemit CRM</Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
                         <Nav className="me-auto">
-                            <Nav.Link as={Link} to={"/crmstrona/import"}>Importuj CSV</Nav.Link>
+                            <Nav.Link as={Link} to={`${import.meta.env.BASE_URL}/import`}>Importuj CSV</Nav.Link>
                         </Nav>
                     </Navbar.Collapse>
                 </Container>
