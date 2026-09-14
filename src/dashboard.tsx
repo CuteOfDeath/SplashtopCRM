@@ -317,7 +317,6 @@ export default function Dashboard() {
     }
 
     async function handleConservation() {
-        console.log("Sigma")
         if (confirm("Czy napewno chcesz oznaczyć ten rekord jako poddany konserwacji?")){
             try {
             const response = await fetch(`${API_BASE}/set_conservation.php`, {
