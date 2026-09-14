@@ -26,10 +26,12 @@ interface TableQueryResult {
 }
 
 interface ActivityRecords {
+    "id" : number
     "Nazwa" : string,
     "Data Dodania": string,
     "Data Umówiona" : string,
     "Notatka" : string
+    "Odznaczone" : boolean
 }
 
 interface ActivityRecordResult {
@@ -69,8 +71,11 @@ export default function Dashboard() {
     const [activityAddStatus, setActivityAddStatus] = useState<string>("idle")
     const [OrderedColumns, setOrderedColumns] = useState<string[]>([])
 
-    const dangerThreshold = new Date().setMonth(new Date().getMonth() - 3)
+    const dangerThreshold = new Date().setMonth(new Date().getMonth() - 3) // 3 months
     const warningThreshold = new Date().setMonth(new Date().getMonth() - 1) // 1 months
+
+    const activityDangerThreshold = new Date().setHours(new Date().getHours() + 1) //in 1 hour
+    const activityWarningThreshold = new Date().setHours(new Date().getHours() + 24) //in a day
 
     async function loadInitTable() {
         if (currentTable == undefined){
@@ -288,6 +293,30 @@ export default function Dashboard() {
             }
     }
 
+    async function handleActivityRealization(checked: boolean, id : number) {
+        console.log(id)
+        if (!checked) {
+            if (confirm("Czy napewno chcesz oznaczyć tą aktywność jako zrealizowaną?")){
+                try {
+                const response = await fetch(`${API_BASE}/mark_as_realized.php`, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        id : id
+                    })
+                })
+                const data: TableQueryResult = await response.json()
+                if (!response.ok || !data.success) {
+                throw new Error(data?.error)
+                }
+                setShowOffCanvas(false)
+                reloadTable()
+            } catch (error) {
+                console.error(error)
+            }
+            }
+        }
+    }
+
 
     function calculateTableRange(pos: PaginationValues): [number,number] {
         return [DISPLAYEDROWCOUNT * pos.current,  DISPLAYEDROWCOUNT * pos.current + DISPLAYEDROWCOUNT]
@@ -350,15 +379,25 @@ export default function Dashboard() {
         setShowOffCanvas(false)
     }
 
-    function evaluateDate(date?: string) {
+    function evaluateDate(date?: string, elementName?: string) {
         if (date) {
-            let typedate = Date.parse(date)
-            if (typedate <= dangerThreshold) {
-                return "table-danger"
-            } else if (typedate <= warningThreshold) {
-                return "table-warning"
+            if (elementName != "Data Umówiona" && elementName != "Notatka"){
+                let typedate = Date.parse(date)
+                if (typedate <= dangerThreshold) {
+                    return "table-danger"
+                } else if (typedate <= warningThreshold) {
+                    return "table-warning"
+                }
+                return "table-light"
+            }else{
+                let typedate = Date.parse(date)
+                if (typedate <= activityDangerThreshold) {
+                    return "table-danger"
+                } else if (typedate <= activityWarningThreshold) {
+                    return "table-warning"
+                }
+                return "table-light"
             }
-            return "table-light"
         }
     }
 
@@ -555,7 +594,7 @@ export default function Dashboard() {
                                     }} className="table-light">
                                         {displayedColumns.map((element, index) => {
                                             if (isDateLike(row[element])){
-                                                return <td key={index} className={evaluateDate(row[element]?.toString())}>{row[element]}</td>
+                                                return <td key={index} className={evaluateDate(row[element]?.toString(),element)}>{row[element]}</td>
                                             }else{
                                                 return <td key={index}>{row[element]}</td>
                                             }
@@ -615,7 +654,7 @@ export default function Dashboard() {
                                     <Container style={{marginTop:"20px"}}>
                                         <h3>Historia Aktywności:</h3>
                                         {currentRecordActivity?.map((activity : ActivityRecords) => (
-                                            <Card style={{marginTop:"20px"}}>
+                                            <Card style={activity["Odznaczone"] ? {marginTop:"20px", opacity:"70%"} : {marginTop:"20px"}}>
                                                 <Card.Header>Data Dodania: {activity["Data Dodania"]}</Card.Header>
                                                 <Card.Body>
                                                     <Card.Title>{activity["Nazwa"]}</Card.Title>
@@ -623,6 +662,10 @@ export default function Dashboard() {
                                                         Data Umówiona: {activity["Data Umówiona"]}<br/>
                                                         Notatka: {activity["Notatka"]}
                                                     </Card.Text>
+                                                    <InputGroup>
+                                                        <InputGroup.Checkbox checked={activity["Odznaczone"]} onChange={() => handleActivityRealization(activity["Odznaczone"],activity["id"])}/>
+                                                        <InputGroup.Text>Zrealizowane</InputGroup.Text>
+                                                    </InputGroup>
                                                 </Card.Body>
                                             </Card>
                                         ))}
