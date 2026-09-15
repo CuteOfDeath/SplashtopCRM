@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react"
-import { Button, Container, Dropdown, ListGroup, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination, Card} from "react-bootstrap"
+import { Button, Container, Dropdown, ListGroup, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination, Card, ToastContainer, Toast, ToastHeader, ToastBody} from "react-bootstrap"
 import { Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import "./styles/bootstrap.min.css";
@@ -47,6 +47,49 @@ interface PaginationValues {
 
 const API_BASE = `${import.meta.env.BASE_URL}/crmapi`
 
+// Zwraca właściwą formę gramatyczną liczebnika zgodnie z polskimi regułami
+// odmiany: 1 → forma pojedyncza, 2–4 → forma "kilka" (z wyjątkiem 12–14),
+// pozostałe → forma "wiele".
+function polishPluralForm(count: number, forms: [string, string, string]): string {
+    if (count === 1) return forms[0]
+    const lastDigit = count % 10
+    const lastTwoDigits = count % 100
+    if (lastDigit >= 2 && lastDigit <= 4 && !(lastTwoDigits >= 12 && lastTwoDigits <= 14)) {
+        return forms[1]
+    }
+    return forms[2]
+}
+
+// Porównuje znacznik czasu "Y-m-d H:i:s" (zwracany przez backend PHP) z
+// bieżącym momentem i opisuje różnicę po polsku, np. "za 3 godziny" albo
+// "5 dni temu". Zwraca "przed chwilą" / "za mniej niż minutę" poniżej minuty.
+function getRelativeTimeString(dateString: string): string {
+    // Niektóre silniki (np. Safari) niepoprawnie parsują format "Y-m-d H:i:s"
+    // ze spacją — zamiana na "T" daje poprawny, lokalny znacznik ISO wszędzie.
+    const target = new Date(dateString.replace(" ", "T"))
+    const diffSeconds = Math.round((target.getTime() - Date.now()) / 1000)
+    const absSeconds = Math.abs(diffSeconds)
+
+    const units: [[string, string, string], number][] = [
+        [["rok", "lata", "lat"], 60 * 60 * 24 * 365],
+        [["miesiąc", "miesiące", "miesięcy"], 60 * 60 * 24 * 30],
+        [["tydzień", "tygodnie", "tygodni"], 60 * 60 * 24 * 7],
+        [["dzień", "dni", "dni"], 60 * 60 * 24],
+        [["godzina", "godziny", "godzin"], 60 * 60],
+        [["minuta", "minuty", "minut"], 60],
+    ]
+
+    for (const [forms, unitSeconds] of units) {
+        if (absSeconds >= unitSeconds) {
+            const value = Math.round(absSeconds / unitSeconds)
+            const label = `${value} ${polishPluralForm(value, forms)}`
+            return diffSeconds > 0 ? `za ${label}` : `${label} temu`
+        }
+    }
+
+    return diffSeconds > 0 ? "za mniej niż minutę" : "przed chwilą"
+}
+
 export default function Dashboard() {
     const DISPLAYEDROWCOUNT = 50
     const DEFAULTCOLUMNS = ["id", "Nazwa", "Nazwa Urządzenia", "Nazwa Klienta", "Ostatnia Sesja", "Data Umówiona", "Notatka"]
@@ -70,6 +113,9 @@ export default function Dashboard() {
     const [mostRecentTable, setMostRecentTable] = useState<string | undefined>(undefined)
     const [activityAddStatus, setActivityAddStatus] = useState<string>("idle")
     const [OrderedColumns, setOrderedColumns] = useState<string[]>([])
+    const [currentAlerts, setCurrentAlerts] = useState<ActivityRecords[]>([])
+    const [hiddenAlerts, setHiddenAlerts] = useState<number[]>([])
+    const [, setTimeTick] = useState(0) // bumped periodically to refresh relative-time labels
 
     const dangerThreshold = new Date().setMonth(new Date().getMonth() - 3) // 3 months
     const warningThreshold = new Date().setMonth(new Date().getMonth() - 1) // 1 months
@@ -338,6 +384,34 @@ export default function Dashboard() {
         }
     }
 
+    async function getAlerts() {
+        let currentalertids: number[] = []
+        currentAlerts.forEach((element) => {
+            currentalertids.push(element["id"])
+        })
+        try {
+            const response = await fetch(`${API_BASE}/check_for_alerts.php`, {
+                method: "POST",
+                body: JSON.stringify({
+                    ids : currentalertids
+                })
+            })
+            const data: ActivityRecordResult = await response.json()
+            if (!response.ok || !data.success) {
+            throw new Error(data?.error)
+            }
+            const newRows = (data.result ?? []).filter(
+                row => !currentAlerts.some(element => element["id"] === row["id"])
+            )
+            if (newRows.length > 0) {
+                setCurrentAlerts([...currentAlerts, ...newRows])
+            }
+        } catch (error) {
+            console.error(error)
+        }
+    }
+
+
 
     function calculateTableRange(pos: PaginationValues): [number,number] {
         return [DISPLAYEDROWCOUNT * pos.current,  DISPLAYEDROWCOUNT * pos.current + DISPLAYEDROWCOUNT]
@@ -437,6 +511,11 @@ export default function Dashboard() {
     return currentFilters.find((filter) => filter.Column === element)?.Filter ?? ""
     }
 
+    useEffect(() => {
+        const timeTickInterval = setInterval(() => setTimeTick(tick => tick + 1), 5000)
+        return () => clearInterval(timeTickInterval)
+    }, [])
+
     // fetch once on mount
     useEffect(() => {
         if (!displayTable) {
@@ -445,6 +524,12 @@ export default function Dashboard() {
         if (!allTables) {
             void getTables()
         }
+        if(currentAlerts.length == 0){
+            getAlerts()
+        }
+        setInterval(() => {
+            getAlerts()
+        }, 5000);
     }, [])
 
     return (
@@ -465,6 +550,26 @@ export default function Dashboard() {
 
                 {!loading && displayTable && (
                     <>
+                        {(currentAlerts.length != 0 && !(hiddenAlerts.length >= currentAlerts.length)) && (
+                            <Container style={{borderRadius: "5px", padding:"1%", backgroundColor:"#FFEB9E", marginBottom: "1%"}} fluid>
+                            <h3 style={{color:"black", marginBottom: "1%"}}>Najbliższe spotkania:</h3>
+                                <ToastContainer className="position-static d-flex flex-row flex-wrap gap-2 mb-2">
+                                    {currentAlerts.map((alert) => (
+                                        <Toast key={alert.id} show={!(hiddenAlerts.includes(alert.id))} onClose={() => {
+                                            setHiddenAlerts([...hiddenAlerts, alert.id])
+                                            }}>
+                                            <Toast.Header>
+                                                <strong className="me-auto">{alert.Nazwa}</strong>
+                                                <small>{getRelativeTimeString(alert["Data Umówiona"])}</small>
+                                            </Toast.Header>
+                                            <Toast.Body>
+                                                Notatka: {alert.Notatka || "Brak notatki"}
+                                                </Toast.Body>
+                                        </Toast>
+                                    ))}
+                                </ToastContainer>
+                            </Container>
+                        )}
                         <Container style={{borderRadius:"5px", padding:"1%", marginBottom:"1%"}} className="bg-secondary" fluid>
                             <Row>
                                 <Col md="auto">
