@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react"
-import { Button, Container, Dropdown, ListGroup, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination, Card, ToastContainer, Toast, ToastHeader, ToastBody} from "react-bootstrap"
+import { Button, Container, Dropdown, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination, Card, ToastContainer, Toast, ToastHeader, ToastBody} from "react-bootstrap"
 import { Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import "./styles/bootstrap.min.css";
@@ -8,6 +8,8 @@ import "./styles/bootstrap.min.css";
 //Notes for the future when doing any other react project:
 //Please for the love of god do not put everything in the same file, create module scripts with exported functions.
 //
+
+//TODO: Figure out how to subsitute the values of one column for a another. ughghghgh
 
 interface Filter {
     Column : string
@@ -46,49 +48,6 @@ interface PaginationValues {
 }
 
 const API_BASE = `${import.meta.env.BASE_URL}/crmapi`
-
-// Zwraca właściwą formę gramatyczną liczebnika zgodnie z polskimi regułami
-// odmiany: 1 → forma pojedyncza, 2–4 → forma "kilka" (z wyjątkiem 12–14),
-// pozostałe → forma "wiele".
-function polishPluralForm(count: number, forms: [string, string, string]): string {
-    if (count === 1) return forms[0]
-    const lastDigit = count % 10
-    const lastTwoDigits = count % 100
-    if (lastDigit >= 2 && lastDigit <= 4 && !(lastTwoDigits >= 12 && lastTwoDigits <= 14)) {
-        return forms[1]
-    }
-    return forms[2]
-}
-
-// Porównuje znacznik czasu "Y-m-d H:i:s" (zwracany przez backend PHP) z
-// bieżącym momentem i opisuje różnicę po polsku, np. "za 3 godziny" albo
-// "5 dni temu". Zwraca "przed chwilą" / "za mniej niż minutę" poniżej minuty.
-function getRelativeTimeString(dateString: string): string {
-    // Niektóre silniki (np. Safari) niepoprawnie parsują format "Y-m-d H:i:s"
-    // ze spacją — zamiana na "T" daje poprawny, lokalny znacznik ISO wszędzie.
-    const target = new Date(dateString.replace(" ", "T"))
-    const diffSeconds = Math.round((target.getTime() - Date.now()) / 1000)
-    const absSeconds = Math.abs(diffSeconds)
-
-    const units: [[string, string, string], number][] = [
-        [["rok", "lata", "lat"], 60 * 60 * 24 * 365],
-        [["miesiąc", "miesiące", "miesięcy"], 60 * 60 * 24 * 30],
-        [["tydzień", "tygodnie", "tygodni"], 60 * 60 * 24 * 7],
-        [["dzień", "dni", "dni"], 60 * 60 * 24],
-        [["godzina", "godziny", "godzin"], 60 * 60],
-        [["minuta", "minuty", "minut"], 60],
-    ]
-
-    for (const [forms, unitSeconds] of units) {
-        if (absSeconds >= unitSeconds) {
-            const value = Math.round(absSeconds / unitSeconds)
-            const label = `${value} ${polishPluralForm(value, forms)}`
-            return diffSeconds > 0 ? `za ${label}` : `${label} temu`
-        }
-    }
-
-    return diffSeconds > 0 ? "za mniej niż minutę" : "przed chwilą"
-}
 
 export default function Dashboard() {
     const DISPLAYEDROWCOUNT = 50
@@ -362,28 +321,6 @@ export default function Dashboard() {
         }
     }
 
-    async function handleConservation() {
-        if (confirm("Czy napewno chcesz oznaczyć ten rekord jako poddany konserwacji?")){
-            try {
-            const response = await fetch(`${API_BASE}/set_conservation.php`, {
-                method: "POST",
-                body: JSON.stringify({
-                    id : currentRecordInfo!["id"],
-                    table: currentTable
-                })
-            })
-            const data: TableQueryResult = await response.json()
-            if (!response.ok || !data.success) {
-            throw new Error(data?.error)
-            }
-            setShowOffCanvas(false)
-            reloadTable()
-        } catch (error) {
-            console.error(error)
-        }
-        }
-    }
-
     async function getAlerts() {
         let currentalertids: number[] = []
         currentAlerts.forEach((element) => {
@@ -411,6 +348,40 @@ export default function Dashboard() {
         }
     }
 
+    function polishPluralForm(count: number, forms: [string, string, string]): string {
+    if (count === 1) return forms[0]
+    const lastDigit = count % 10
+    const lastTwoDigits = count % 100
+    if (lastDigit >= 2 && lastDigit <= 4 && !(lastTwoDigits >= 12 && lastTwoDigits <= 14)) {
+        return forms[1]
+    }
+    return forms[2]
+    }
+
+    function getRelativeTimeString(dateString: string): string {
+        const target = new Date(dateString.replace(" ", "T"))
+        const diffSeconds = Math.round((target.getTime() - Date.now()) / 1000)
+        const absSeconds = Math.abs(diffSeconds)
+
+        const units: [[string, string, string], number][] = [
+            [["rok", "lata", "lat"], 60 * 60 * 24 * 365],
+            [["miesiąc", "miesiące", "miesięcy"], 60 * 60 * 24 * 30],
+            [["tydzień", "tygodnie", "tygodni"], 60 * 60 * 24 * 7],
+            [["dzień", "dni", "dni"], 60 * 60 * 24],
+            [["godzina", "godziny", "godzin"], 60 * 60],
+            [["minuta", "minuty", "minut"], 60],
+        ]
+
+        for (const [forms, unitSeconds] of units) {
+            if (absSeconds >= unitSeconds) {
+                const value = Math.round(absSeconds / unitSeconds)
+                const label = `${value} ${polishPluralForm(value, forms)}`
+                return diffSeconds > 0 ? `za ${label}` : `${label} temu`
+            }
+        }
+
+        return diffSeconds > 0 ? "za mniej niż minutę" : "przed chwilą"
+    }
 
 
     function calculateTableRange(pos: PaginationValues): [number,number] {
@@ -564,7 +535,7 @@ export default function Dashboard() {
                                             </Toast.Header>
                                             <Toast.Body>
                                                 Notatka: {alert.Notatka || "Brak notatki"}
-                                                </Toast.Body>
+                                            </Toast.Body>
                                         </Toast>
                                     ))}
                                 </ToastContainer>
@@ -737,12 +708,11 @@ export default function Dashboard() {
                                     <Offcanvas.Title>{currentRecordInfo?.Nazwa}</Offcanvas.Title>
                                 </Offcanvas.Header>
                                 <Offcanvas.Body>
-                                    <Button onClick={() => handleConservation()} style={{marginBottom: "20px"}}>Oznacz jako poddane konserwacji</Button>
-                                    <ListGroup>
+                                    {/* <ListGroup>
                                         {Object.keys(currentRecordInfo ?? {}).map((key, index) => (
                                             <ListGroup.Item key={index}>{key}: {currentRecordInfo?.[key]}</ListGroup.Item>
                                         ))}
-                                    </ListGroup>
+                                    </ListGroup> uncomment this if the detail listing is actually in any way useful. As of right now its redundant. */}
                                     <Form style={{marginTop:"3%", padding:"5%", borderRadius:"5px"}} className="bg-secondary" onSubmit={handleAddActivity}>
                                         <Row style={{marginBottom: "10%", fontWeight: "bold"}}>
                                             <Col>
