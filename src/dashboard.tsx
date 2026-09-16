@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react"
-import { Button, Container, Dropdown, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination, Card, ToastContainer, Toast} from "react-bootstrap"
+import { Button, Container, Dropdown, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination, Card, ToastContainer, Toast, CardHeader} from "react-bootstrap"
 import { Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import "./styles/bootstrap.min.css";
@@ -9,7 +9,7 @@ import "./styles/bootstrap.min.css";
 //Please for the love of god do not put everything in the same file, create module scripts with exported functions.
 //
 
-//TODO: Figure out how to subsitute the values of one column for a another. ughghghgh
+//TODO: Implement realizing Contact and Conservation activities
 
 interface Filter {
     Column : string
@@ -28,12 +28,14 @@ interface TableQueryResult {
 }
 
 interface ActivityRecords {
-    "id" : number
-    "Nazwa" : string,
-    "Data Dodania": string,
-    "Data Umówiona" : string,
-    "Notatka" : string
-    "Odznaczone" : boolean
+    id: number;
+    "Nazwa": string;
+    "Data Dodania": string;
+    "Data Umówiona": string | null;
+    "Ostatnia Sesja": string | null;
+    "Użytkownik": string | null;
+    "Notatka": string | null;
+    "Odznaczone": 0 | 1;
 }
 
 interface ActivityRecordResult {
@@ -135,6 +137,7 @@ export default function Dashboard() {
                     })
                 })
                 const data: ActivityRecordResult = await response.json()
+                console.log(data.result)
                 if (!response.ok || !data.success) {
                     throw new Error(data?.error)
                 }
@@ -296,29 +299,6 @@ export default function Dashboard() {
                 setActivityAddStatus("error")
                 console.error(error)
             }
-    }
-
-    async function handleActivityRealization(checked: boolean, id : number) {
-        if (!checked) {
-            if (confirm("Czy napewno chcesz oznaczyć tą aktywność jako zrealizowaną?")){
-                try {
-                const response = await fetch(`${API_BASE}/mark_as_realized.php`, {
-                    method: "POST",
-                    body: JSON.stringify({
-                        id : id
-                    })
-                })
-                const data: TableQueryResult = await response.json()
-                if (!response.ok || !data.success) {
-                throw new Error(data?.error)
-                }
-                setShowOffCanvas(false)
-                reloadTable()
-            } catch (error) {
-                console.error(error)
-            }
-            }
-        }
     }
 
     async function getAlerts() {
@@ -531,7 +511,7 @@ export default function Dashboard() {
                                             }}>
                                             <Toast.Header>
                                                 <strong className="me-auto">{alert.Nazwa}</strong>
-                                                <small>{getRelativeTimeString(alert["Data Umówiona"])}</small>
+                                                <small>{getRelativeTimeString(alert["Data Umówiona"]!)}</small>
                                             </Toast.Header>
                                             <Toast.Body>
                                                 Notatka: {alert.Notatka || "Brak notatki"}
@@ -713,10 +693,10 @@ export default function Dashboard() {
                                             <ListGroup.Item key={index}>{key}: {currentRecordInfo?.[key]}</ListGroup.Item>
                                         ))}
                                     </ListGroup> uncomment this if the detail listing is actually in any way useful. As of right now its redundant. */}
-                                    <Form style={{marginTop:"3%", padding:"5%", borderRadius:"5px"}} className="bg-secondary" onSubmit={handleAddActivity}>
+                                    <Form style={{marginTop:"3%", padding:"5%", borderRadius:"5px"}} className="bg-secondary" onSubmit={(e) => handleAddActivity(e)}>
                                         <Row style={{marginBottom: "10%", fontWeight: "bold"}}>
                                             <Col>
-                                                <Form.Label>Dodaj Aktywność</Form.Label>
+                                                <Form.Label>Dodaj Przyszły Kontakt</Form.Label>
                                             </Col>
                                         </Row>
                                         <Row>
@@ -728,14 +708,6 @@ export default function Dashboard() {
                                             </Col>
                                             <Col>
                                                 <Form.Control type="time" name="timeInput"/>
-                                            </Col>
-                                        </Row>
-                                        <Row>
-                                            <Form.Label>Notatka:</Form.Label>
-                                        </Row>
-                                        <Row>
-                                            <Col>
-                                                <Form.Control as="textarea" name="noteInput"/>
                                             </Col>
                                         </Row>
                                         <Row>
@@ -751,18 +723,32 @@ export default function Dashboard() {
                                     <Container style={{marginTop:"20px"}}>
                                         <h3>Historia Aktywności:</h3>
                                         {currentRecordActivity?.map((activity : ActivityRecords) => (
-                                            <Card style={activity["Odznaczone"] ? {marginTop:"20px", opacity:"70%"} : {marginTop:"20px"}}>
+                                            <Card style={(activity["Odznaczone"] === 1)? {marginTop:"2%",opacity:"80%"} : {marginTop:"2%"}}>
                                                 <Card.Header>Data Dodania: {activity["Data Dodania"]}</Card.Header>
                                                 <Card.Body>
-                                                    <Card.Title>{activity["Nazwa"]}</Card.Title>
+                                                    {/*Puke*/}
+                                                    <Card.Title>{activity["Ostatnia Sesja"]? <>Konserwacja</> : <>Kontakt</>}</Card.Title>
+                                                    {(activity["Odznaczone"] === 1)? 
                                                     <Card.Text>
-                                                        Data Umówiona: {activity["Data Umówiona"]}<br/>
+                                                        Wykonano: {activity["Ostatnia Sesja"]? getRelativeTimeString(activity["Ostatnia Sesja"]!) : getRelativeTimeString(activity["Data Umówiona"]!)}<br/>
+                                                        Przez: {activity["Użytkownik"]}<br/>
                                                         Notatka: {activity["Notatka"]}
-                                                    </Card.Text>
-                                                    <InputGroup>
-                                                        <InputGroup.Checkbox checked={activity["Odznaczone"]} onChange={() => handleActivityRealization(activity["Odznaczone"],activity["id"])}/>
-                                                        <InputGroup.Text>Zrealizowane</InputGroup.Text>
-                                                    </InputGroup>
+                                                    </Card.Text> : 
+                                                    <Card.Text>
+                                                        Zaplanowany na: {getRelativeTimeString(activity["Data Umówiona"]!)}<br/>
+                                                        Przez: {activity["Użytkownik"]}<br/>
+                                                        Notatka: {activity["Notatka"]}<br/>
+                                                    </Card.Text>}
+                                                    <Container>
+                                                        <Row>
+                                                            <Col>
+                                                                <Button disabled={activity["Odznaczone"] === 1}>Zrealizuj Kontakt</Button>
+                                                            </Col>
+                                                            <Col>
+                                                                <Button disabled={activity["Odznaczone"] === 1}>Zrealizuj Konserwacje</Button>
+                                                            </Col>
+                                                        </Row>
+                                                    </Container>
                                                 </Card.Body>
                                             </Card>
                                         ))}
