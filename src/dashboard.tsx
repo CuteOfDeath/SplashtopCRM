@@ -9,8 +9,6 @@ import "./styles/bootstrap.min.css";
 //Please for the love of god do not put everything in the same file, create module scripts with exported functions.
 //
 
-//TODO: Implement realizing Contact and Conservation activities
-
 interface Filter {
     Column : string
     Filter: string
@@ -591,7 +589,7 @@ export default function Dashboard() {
         }
         setInterval(() => {
             getAlerts()
-        }, 5000);
+        }, 60000);
     }, [])
 
     const popover = (
@@ -632,8 +630,8 @@ export default function Dashboard() {
                             <h3 style={{color:"black", marginBottom: "1%"}}>Najbliższe spotkania:</h3>
                                 <ToastContainer className="position-static d-flex flex-row flex-wrap gap-2 mb-2">
                                     {currentAlerts.map((alert) => (
-                                        <Toast key={alert.id} show={!(hiddenAlerts.includes(alert.id))} onClick={() => handleDetailClick(alert.id,alert.Nazwa)} onClose={() => {
-                                            setHiddenAlerts([...hiddenAlerts, alert.id])
+                                        <Toast key={alert.id} show={!(hiddenAlerts.includes(alert.id))} onClick={() => handleDetailClick(alert.id,alert.Nazwa)} onClose={(e) => {
+                                            e?.stopPropagation(); setHiddenAlerts([...hiddenAlerts, alert.id])
                                             }}>
                                             <Toast.Header>
                                                 <strong className="me-auto">{alert.Nazwa}</strong>
@@ -825,6 +823,8 @@ export default function Dashboard() {
                                     </OverlayTrigger>
                                 </Offcanvas.Header>
                                 <Offcanvas.Body>
+                                    <Button onClick={() => {setShowConservationModal(true); setCurrentActivityId(0)}}>Dodaj Niezależną Konserwacje</Button> 
+                                    {/* Shouldn't have a id of 0 ever, hopefully */}
                                     <Form style={{marginTop:"3%", padding:"5%", borderRadius:"5px"}} className="bg-secondary" onSubmit={(e) => { e.preventDefault(); handleAddActivity(new FormData(e.currentTarget)) }}>
                                         <Row style={{marginBottom: "10%", fontWeight: "bold"}}>
                                             <Col>
