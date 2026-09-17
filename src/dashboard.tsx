@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react"
-import { Button, Container, Dropdown, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination, Card, ToastContainer, Toast} from "react-bootstrap"
+import { Button, Container, Dropdown, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination, Card, ToastContainer, Toast, Modal} from "react-bootstrap"
 import { Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import "./styles/bootstrap.min.css";
@@ -76,6 +76,9 @@ export default function Dashboard() {
     const [OrderedColumns, setOrderedColumns] = useState<string[]>([])
     const [currentAlerts, setCurrentAlerts] = useState<ActivityRecords[]>([])
     const [hiddenAlerts, setHiddenAlerts] = useState<number[]>([])
+    const [showContactModal, setShowContactModal] = useState<boolean>(false)
+    const [showConservationModal,setShowConservationModal] = useState<boolean>(false)
+    const [currentActivityId, setCurrentActivityId] = useState<number>(0)
     const [, setTimeTick] = useState(0) // bumped periodically to refresh relative-time labels
 
     const dangerThreshold = new Date().setMonth(new Date().getMonth() - 3) // 3 months
@@ -137,7 +140,6 @@ export default function Dashboard() {
                     })
                 })
                 const data: ActivityRecordResult = await response.json()
-                console.log(data.result)
                 if (!response.ok || !data.success) {
                     throw new Error(data?.error)
                 }
@@ -273,20 +275,37 @@ export default function Dashboard() {
                 setLoading(false)
             }
     }
+    async function reloadActivities(){
+        try {
+                const response = await fetch(`${API_BASE}/get_all_activity.php`, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        name: currentRecordInfo!["Nazwa"]
+                    })
+                })
+                const data: ActivityRecordResult = await response.json()
+                if (!response.ok || !data.success) {
+                    throw new Error(data?.error)
+                }
+                setCurrentRecordActivity(data.result)
+            }catch (error){
+                console.error(error)
+            }
+    }
 
-    async function handleAddActivity(e: React.FormEvent<HTMLFormElement>) {
-        e.preventDefault()
-        const dateInput = new FormData(e.currentTarget).get("dateInput") as string;
-        const timeInput = new FormData(e.currentTarget).get("timeInput") as string;
-        const noteInput = new FormData(e.currentTarget).get("noteInput") as string;
+    async function handleConservation(formData: FormData){
+        const nameInput = formData.get("nameInput") as string
+        const noteInput = formData.get("realizenoteInput") as string;
         setActivityAddStatus("loading")
         try {
                 const response = await fetch(`${API_BASE}/set_activity.php`, {
                     method: "POST",
                     body: JSON.stringify({
                         name: currentRecordInfo!["Nazwa"],
-                        meeting_date: dateInput + " " + timeInput,
-                        note: noteInput
+                        username: nameInput,
+                        conservation: true,
+                        note: noteInput,
+                        mark: 1
                     })
                 })
                 const data: TableQueryResult = await response.json()
@@ -299,6 +318,76 @@ export default function Dashboard() {
                 setActivityAddStatus("error")
                 console.error(error)
             }
+    }
+
+    async function handleActivityRealization(e: React.FormEvent<HTMLFormElement>, conservation?: boolean) {
+        e.preventDefault()
+        const formData = new FormData(e.currentTarget) 
+        const nameInput = formData.get("nameInput")
+        const noteInput = formData.get("realizenoteInput")
+        const potentialDateInput = formData.get("dateInput")
+        let status = ""
+        setActivityAddStatus("loading")
+        try {
+                const response = await fetch(`${API_BASE}/mark_as_realized.php`, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        id: currentActivityId,
+                        username: nameInput,
+                        note: noteInput,
+                    })
+                })
+                const data: TableQueryResult = await response.json()
+                if (!response.ok || !data.success) {
+                throw new Error(data?.error)
+                }
+                status = "success"
+            } catch (error) {
+                status = "error"
+                console.error(error)
+        }
+        if (!(potentialDateInput === null || potentialDateInput === "")){
+            await handleAddActivity(formData)
+        }else{
+            if(conservation){
+                await handleConservation(formData)
+            }
+        }
+        reloadActivities()
+        setActivityAddStatus(status)
+        setShowConservationModal(false)
+        setShowContactModal(false)
+        reloadTable()
+    }
+
+    async function handleAddActivity(formData: FormData) {
+        const dateInput = formData.get("dateInput") as string;
+        const nameInput = formData.get("nameInput") as string
+        const timeInput = formData.get("timeInput") as string;
+        const noteInput = formData.get("noteInput") as string;
+        setActivityAddStatus("loading")
+        try {
+                const response = await fetch(`${API_BASE}/set_activity.php`, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        name: currentRecordInfo!["Nazwa"],
+                        username: nameInput,
+                        meeting_date: dateInput + " " + timeInput,
+                        note: noteInput
+                    })
+                })
+                const data: TableQueryResult = await response.json()
+                if (!response.ok || !data.success) {
+                throw new Error(data?.error)
+                }
+                reloadActivities()
+                setActivityAddStatus("success")
+                reloadTable()
+            } catch (error) {
+                setActivityAddStatus("error")
+                console.error(error)
+            }
+        
     }
 
     async function getAlerts() {
@@ -693,10 +782,18 @@ export default function Dashboard() {
                                             <ListGroup.Item key={index}>{key}: {currentRecordInfo?.[key]}</ListGroup.Item>
                                         ))}
                                     </ListGroup> uncomment this if the detail listing is actually in any way useful. As of right now its redundant. */}
-                                    <Form style={{marginTop:"3%", padding:"5%", borderRadius:"5px"}} className="bg-secondary" onSubmit={(e) => handleAddActivity(e)}>
+                                    <Form style={{marginTop:"3%", padding:"5%", borderRadius:"5px"}} className="bg-secondary" onSubmit={(e) => { e.preventDefault(); handleAddActivity(new FormData(e.currentTarget)) }}>
                                         <Row style={{marginBottom: "10%", fontWeight: "bold"}}>
                                             <Col>
                                                 <Form.Label>Dodaj Przyszły Kontakt</Form.Label>
+                                            </Col>
+                                        </Row>
+                                        <Row>
+                                            <Form.Label>Imie Pracownika:</Form.Label>
+                                        </Row>
+                                        <Row>
+                                            <Col>
+                                                <Form.Control type="text" name="nameInput" required/>
                                             </Col>
                                         </Row>
                                         <Row>
@@ -704,29 +801,34 @@ export default function Dashboard() {
                                         </Row>
                                         <Row>
                                             <Col>
-                                                <Form.Control type="date" name="dateInput"/>
+                                                <Form.Control type="date" name="dateInput" required/>
                                             </Col>
                                             <Col>
-                                                <Form.Control type="time" name="timeInput"/>
+                                                <Form.Control type="time" name="timeInput" required/>
+                                            </Col>
+                                        </Row>
+                                        <Row>
+                                            <Form.Label>Notatka:</Form.Label>
+                                        </Row>
+                                        <Row>
+                                            <Col>
+                                                <Form.Control as="textarea" name="noteInput"/>
                                             </Col>
                                         </Row>
                                         <Row>
                                             <Col>
                                                 <Button type="submit" style={{marginTop:"5%"}} disabled={activityAddStatus == "loading"}>Dodaj</Button>
                                             </Col>
-                                            <Col>
-                                                {(activityAddStatus == "error") && <p style={{color:"red"}}>Coś poszło nie tak, sprawdź konsole.</p>}
-                                                {(activityAddStatus == "success") && <p style={{color:"green"}}>Aktywność dodana pomyślnie!</p>}
-                                            </Col>
                                         </Row>
                                     </Form>
-                                    <Container style={{marginTop:"20px"}}>
+                                    {(activityAddStatus == "error") && <h5 style={{color:"red"}}>Coś poszło nie tak, sprawdź konsole.</h5>}
+                                    {(activityAddStatus == "success") && <h5 style={{color:"green"}}>Aktywność dodana pomyślnie!</h5>}
+                                    {activityAddStatus !== "loading" && (<Container style={{marginTop:"20px"}}>
                                         <h3>Historia Aktywności:</h3>
                                         {currentRecordActivity?.map((activity : ActivityRecords) => (
-                                            <Card style={(activity["Odznaczone"] === 1)? {marginTop:"2%",opacity:"80%"} : {marginTop:"2%"}}>
+                                            <Card style={(activity["Odznaczone"] === 1)? {marginTop:"2%"} : {marginTop:"2%"}}>
                                                 <Card.Header>Data Dodania: {activity["Data Dodania"]}</Card.Header>
-                                                <Card.Body>
-                                                    {/*Puke*/}
+                                                <Card.Body style={(activity["Odznaczone"] === 1)? {backgroundColor:"#C6F5B5"} : {backgroundColor:"#FFEB9E"}}>
                                                     <Card.Title>{activity["Ostatnia Sesja"]? <>Konserwacja</> : <>Kontakt</>}</Card.Title>
                                                     {(activity["Odznaczone"] === 1)? 
                                                     <Card.Text>
@@ -742,19 +844,92 @@ export default function Dashboard() {
                                                     <Container>
                                                         <Row>
                                                             <Col>
-                                                                <Button disabled={activity["Odznaczone"] === 1}>Zrealizuj Kontakt</Button>
+                                                                <Button disabled={activity["Odznaczone"] === 1} onClick={() => {setShowContactModal(true); setCurrentActivityId(activity["id"])}}>Zrealizuj Kontakt</Button>
                                                             </Col>
                                                             <Col>
-                                                                <Button disabled={activity["Odznaczone"] === 1}>Zrealizuj Konserwacje</Button>
+                                                                <Button disabled={activity["Odznaczone"] === 1} onClick={() => {setShowConservationModal(true); setCurrentActivityId(activity["id"])}}>Zrealizuj Konserwacje</Button>
                                                             </Col>
                                                         </Row>
                                                     </Container>
                                                 </Card.Body>
                                             </Card>
                                         ))}
-                                    </Container>
+                                    </Container>)}
                             </Offcanvas.Body>
                     </Offcanvas>
+                    <Modal show={showContactModal} onHide={()=> setShowContactModal(false)}>
+                        <Modal.Header closeButton>
+                            <Modal.Title>Zrealizuj Kontakt</Modal.Title>
+                        </Modal.Header>
+                        <Form onSubmit={handleActivityRealization}>
+                            <Modal.Body>
+                                <Container>
+                                    <Row>
+                                        <Form.Group>
+                                            <Form.Label>Imie Pracownika:</Form.Label>
+                                            <Form.Control type="text" name="nameInput" required/>
+                                        </Form.Group>
+                                    </Row>
+                                    <Row>
+                                        <Form.Group>
+                                            <Form.Label>Notatka:</Form.Label>
+                                            <Form.Control as="textarea" name="realizenoteInput"/>
+                                        </Form.Group>
+                                    </Row>
+                                        <hr style={{margin:"4%", borderWidth:"3px"}}/>
+                                    <Row style={{marginBottom:"2%", fontWeight:"bold"}}>
+                                        <Form.Label>Dodaj Kolejny Kontakt:</Form.Label>
+                                    </Row>
+                                    <Row>
+                                        <Form.Label>Data Umówionej Sesji:</Form.Label>
+                                    </Row>
+                                    <Row>
+                                            <Col>
+                                                <Form.Control type="date" name="dateInput"/>
+                                            </Col>
+                                            <Col>
+                                                <Form.Control type="time" name="timeInput"/>
+                                            </Col>
+                                    </Row>
+                                    <Row>
+                                        <Form.Group>
+                                            <Form.Label>Notatka:</Form.Label>
+                                            <Form.Control as="textarea" name="noteInput"/>
+                                        </Form.Group>
+                                    </Row>
+                                </Container>
+                            </Modal.Body>
+                            <Modal.Footer>
+                                <Button type="submit">Zrealizuj</Button>
+                            </Modal.Footer>
+                        </Form>
+                    </Modal>
+                    <Modal show={showConservationModal} onHide={()=> setShowConservationModal(false)}>
+                        <Modal.Header closeButton>
+                            <Modal.Title>Zrealizuj Konserwacje</Modal.Title>
+                        </Modal.Header>
+                        <Form onSubmit={(e) => handleActivityRealization(e,true)}>
+                            <Modal.Body>
+                                <Container>
+                                    <Row>
+                                        <Form.Group>
+                                            <Form.Label>Imie Pracownika:</Form.Label>
+                                            <Form.Control type="text" name="nameInput" required/>
+                                        </Form.Group>
+                                    </Row>
+                                    <Row>
+                                        <Form.Group>
+                                            <Form.Label>Notatka:</Form.Label>
+                                            <Form.Control as="textarea" name="realizenoteInput"/>
+                                        </Form.Group>
+                                    </Row>
+                                </Container>
+                            </Modal.Body>
+                            <Modal.Footer>
+                                <Button type="submit">Zrealizuj</Button>
+                            </Modal.Footer>
+                        </Form>
+                    </Modal>
             </Container>
         </>
     )
