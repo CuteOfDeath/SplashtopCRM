@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from "react"
-import { Button, Container, Dropdown, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination, Card, ToastContainer, Toast, Modal} from "react-bootstrap"
-import { Search } from "lucide-react";
+import { Button, Container, Dropdown, Nav, Navbar, Offcanvas, Table, Form, InputGroup, Row, Col, Pagination, Card, ToastContainer, Toast, Modal, ListGroup, OverlayTrigger, Popover} from "react-bootstrap"
+import { Search, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import "./styles/bootstrap.min.css";
 
@@ -88,28 +88,27 @@ export default function Dashboard() {
     const activityWarningThreshold = new Date().setHours(new Date().getHours() + 24) //in a day
 
     async function loadInitTable() {
-        if (currentTable == undefined){
-            try {
-                const response = await fetch(`${API_BASE}/view_latest_report.php`, {
-                    method: "GET"
-                })
-                const data : TableQueryResult = await response.json()
-                if (!response.ok || !data.success) {
-                throw new Error(data?.error)
-                }
-                let returned_columns = Object.keys(data.result![0])
-                setCurrentColumns(returned_columns)
-                setDisplayedColumns(DEFAULTCOLUMNS)
-                setDisplayTable(data.result)
-                setCurrentTable(data.table)
-                setMostRecentTable(data.table)
-                setRowCount(data.count)
-                handleScrollBar(undefined,data.count)
-            } catch (error) {
-                console.error(error)
-            } finally {
-                setLoading(false)
+        setLoading(true)
+        try {
+            const response = await fetch(`${API_BASE}/view_latest_report.php`, {
+                method: "GET"
+            })
+            const data : TableQueryResult = await response.json()
+            if (!response.ok || !data.success) {
+            throw new Error(data?.error)
             }
+            let returned_columns = Object.keys(data.result![0])
+            setCurrentColumns(returned_columns)
+            setDisplayedColumns(DEFAULTCOLUMNS)
+            setDisplayTable(data.result)
+            setCurrentTable(data.table)
+            setMostRecentTable(data.table)
+            setRowCount(data.count)
+            handleScrollBar(undefined,data.count)
+        } catch (error) {
+            console.error(error)
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -417,6 +416,29 @@ export default function Dashboard() {
         }
     }
 
+    async function handleTableDelete(table: string) {
+        console.log(table)
+        if(confirm("Czy jesteś napewno chcesz usunąć tą tabele?")){
+            try {
+                const response = await fetch(`${API_BASE}/delete_raport.php`, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        table: table
+                    })
+                })
+                const data: TableQueryResult = await response.json()
+                if (!response.ok || !data.success) {
+                throw new Error(data?.error)
+                }
+                setLoading(true)
+                await getTables()
+                await loadInitTable()
+            } catch (error) {
+                console.log(error)
+            }
+        }
+    }
+
     function polishPluralForm(count: number, forms: [string, string, string]): string {
     if (count === 1) return forms[0]
     const lastDigit = count % 10
@@ -572,6 +594,21 @@ export default function Dashboard() {
         }, 5000);
     }, [])
 
+    const popover = (
+        <Popover>
+            <Popover.Header>
+                Informacje:
+            </Popover.Header>
+           <Popover.Body>
+                <ListGroup>
+                    {Object.keys(currentRecordInfo ?? {}).map((key, index) => (
+                        <ListGroup.Item key={index}>{key}: {currentRecordInfo?.[key]}</ListGroup.Item>
+                    ))}
+                </ListGroup>
+            </Popover.Body> 
+        </Popover>
+    );
+
     return (
         <>
             <Navbar expand="lg" className="navbar navbar-expand-lg bg-primary" data-bs-theme="dark" style={{borderRadius: "10px", margin: "20px"}}>
@@ -595,7 +632,7 @@ export default function Dashboard() {
                             <h3 style={{color:"black", marginBottom: "1%"}}>Najbliższe spotkania:</h3>
                                 <ToastContainer className="position-static d-flex flex-row flex-wrap gap-2 mb-2">
                                     {currentAlerts.map((alert) => (
-                                        <Toast key={alert.id} show={!(hiddenAlerts.includes(alert.id))} onClose={() => {
+                                        <Toast key={alert.id} show={!(hiddenAlerts.includes(alert.id))} onClick={() => handleDetailClick(alert.id,alert.Nazwa)} onClose={() => {
                                             setHiddenAlerts([...hiddenAlerts, alert.id])
                                             }}>
                                             <Toast.Header>
@@ -626,8 +663,17 @@ export default function Dashboard() {
                                                 <Dropdown.Item 
                                                     key={index} 
                                                     onClick={() => void reloadTable(undefined, undefined, undefined, table)}
+                                                    className="d-flex justify-content-between align-items-center"
                                                 >
-                                                    {table.replace("data_","")}
+                                                    <span>{table.replace("data_","")}</span>
+                                                    <Button
+                                                        variant="danger"
+                                                        size="sm"
+                                                        className="py-0 px-1 ms-2"
+                                                        onClick={(e) => { e.stopPropagation(); handleTableDelete(table) }}
+                                                    >
+                                                        <X size={14}/>
+                                                    </Button>
                                                 </Dropdown.Item>
                                             ))}
                                         </Dropdown.Menu>
@@ -774,14 +820,11 @@ export default function Dashboard() {
                 )}
                 <Offcanvas show={showOffCanvas} onHide={handleDetailHide}>
                                 <Offcanvas.Header closeButton>
-                                    <Offcanvas.Title>{currentRecordInfo?.Nazwa}</Offcanvas.Title>
+                                    <OverlayTrigger trigger="hover" placement="bottom" overlay={popover}>
+                                        <Offcanvas.Title>{currentRecordInfo?.Nazwa}</Offcanvas.Title>
+                                    </OverlayTrigger>
                                 </Offcanvas.Header>
                                 <Offcanvas.Body>
-                                    {/* <ListGroup>
-                                        {Object.keys(currentRecordInfo ?? {}).map((key, index) => (
-                                            <ListGroup.Item key={index}>{key}: {currentRecordInfo?.[key]}</ListGroup.Item>
-                                        ))}
-                                    </ListGroup> uncomment this if the detail listing is actually in any way useful. As of right now its redundant. */}
                                     <Form style={{marginTop:"3%", padding:"5%", borderRadius:"5px"}} className="bg-secondary" onSubmit={(e) => { e.preventDefault(); handleAddActivity(new FormData(e.currentTarget)) }}>
                                         <Row style={{marginBottom: "10%", fontWeight: "bold"}}>
                                             <Col>
@@ -847,7 +890,7 @@ export default function Dashboard() {
                                                                 <Button disabled={activity["Odznaczone"] === 1} onClick={() => {setShowContactModal(true); setCurrentActivityId(activity["id"])}}>Zrealizuj Kontakt</Button>
                                                             </Col>
                                                             <Col>
-                                                                <Button disabled={activity["Odznaczone"] === 1} onClick={() => {setShowConservationModal(true); setCurrentActivityId(activity["id"])}}>Zrealizuj Konserwacje</Button>
+                                                                <Button disabled={activity["Odznaczone"] === 1} onClick={() => {setShowConservationModal(true); setCurrentActivityId(activity["id"])}}>Dodaj Konserwacje</Button>
                                                             </Col>
                                                         </Row>
                                                     </Container>
