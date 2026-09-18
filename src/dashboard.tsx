@@ -622,7 +622,7 @@ export default function Dashboard() {
     return (
         <>
             <Navbar expand="lg" className="navbar navbar-expand-lg bg-primary" data-bs-theme="dark" style={{borderRadius: "10px", margin: "20px"}}>
-                <Container>
+                <Container fluid>
                     <Navbar.Brand as={Link} to={`${import.meta.env.BASE_URL}/`}>Cemit CRM</Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
