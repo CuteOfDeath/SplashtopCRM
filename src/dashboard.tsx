@@ -50,12 +50,11 @@ interface PaginationValues {
 const API_BASE = `${import.meta.env.BASE_URL}/crmapi`
 
 export default function Dashboard() {
-    const DISPLAYEDROWCOUNT = 50
     const DEFAULTCOLUMNS = ["id", "Nazwa", "Nazwa Urządzenia", "Nazwa Klienta", "Ostatnia Sesja", "Data Umówiona", "Notatka"]
 
-
+    const [displayedRowCount, setDisplayedRowCount] = useState<number>(50)
     const [loading, setLoading] = useState<boolean>(true)
-    const [tableRange, setTableRange] = useState<[number, number]>([0, DISPLAYEDROWCOUNT])
+    const [tableRange, setTableRange] = useState<[number, number]>([0, displayedRowCount])
     const [displayTable, setDisplayTable] = useState<RecordRow[] | undefined>(undefined)
     const [showOffCanvas, setShowOffCanvas] = useState<boolean>(false)
     const [allTables, setAllTables] = useState<string[] | undefined>(undefined)
@@ -189,7 +188,7 @@ export default function Dashboard() {
             setDisplayTable(data.result)
             setRowCount(data.count)
             handleScrollBar(undefined,data.count)
-            setTableRange([0,DISPLAYEDROWCOUNT])
+            setTableRange([0,displayedRowCount])
         } catch (error) {
             console.error(error)
         } finally {
@@ -208,11 +207,11 @@ export default function Dashboard() {
         if(fullclean){
             setCurrentSort(true)
             setCurrentFilters([])
-            setTableRange([0,DISPLAYEDROWCOUNT])
+            setTableRange([0,displayedRowCount])
             setOrderedColumns([])
             localorderedcolumns = []
             localsort = true
-            localrange = [0,DISPLAYEDROWCOUNT]
+            localrange = [0,displayedRowCount]
         }else{
             currentFilters.forEach(filters => {
                 filteredcolumns[filters.Column as keyof typeof filteredcolumns] = filters.Filter
@@ -473,8 +472,21 @@ export default function Dashboard() {
     }
 
 
-    function calculateTableRange(pos: PaginationValues): [number,number] {
-        return [DISPLAYEDROWCOUNT * pos.current,  DISPLAYEDROWCOUNT * pos.current + DISPLAYEDROWCOUNT]
+    function calculateTableRange(pos: PaginationValues, rowcount?: number): [number,number] {
+        let localdisplayedrowcount = rowcount == undefined? displayedRowCount : rowcount
+        return [localdisplayedrowcount * pos.current,  localdisplayedrowcount * pos.current + localdisplayedrowcount]
+    }
+
+
+    function handleRowCountChange(newCount: number) {
+        const pageAmount = Math.ceil(rowCount / newCount) - 1
+        const newPos: PaginationValues = { current: 0, last: pageAmount }
+        const newRange: [number, number] = [0, newCount]
+
+        setDisplayedRowCount(newCount)
+        setCurrentPos(newPos)
+        setTableRange(newRange)
+        reloadTable(undefined, newRange)
     }
 
     function handleScrollBar(movement?: string, rowCount?: number, preserveCurrent?: boolean){
@@ -520,7 +532,7 @@ export default function Dashboard() {
             }
         }else{
             if(rowCount){
-                let pageAmount = Math.ceil(rowCount / DISPLAYEDROWCOUNT) - 1
+                let pageAmount = Math.ceil(rowCount / displayedRowCount) - 1
                 setRowCount(rowCount)
                 setCurrentPos(prev => ({
                     current: (preserveCurrent && prev) ? Math.min(prev.current, pageAmount) : 0,
@@ -705,9 +717,15 @@ export default function Dashboard() {
                                     </Pagination>
                                 </Col>
                                 <Col md="auto">
-                                    <InputGroup>
-                                            <InputGroup.Text className="bg-light">{rowCount} Rekordów</InputGroup.Text>
-                                    </InputGroup>
+                                    <Dropdown>
+                                        <Dropdown.Toggle>{displayedRowCount}/{rowCount}</Dropdown.Toggle>
+                                        <Dropdown.Menu>
+                                            <Dropdown.Item onClick={() => handleRowCountChange(50)}>50</Dropdown.Item>
+                                            <Dropdown.Item onClick={() => handleRowCountChange(100)}>100</Dropdown.Item>
+                                            <Dropdown.Item onClick={() => handleRowCountChange(200)}>200</Dropdown.Item>
+                                            <Dropdown.Item onClick={() => handleRowCountChange(rowCount)}>ALL</Dropdown.Item>
+                                        </Dropdown.Menu>
+                                    </Dropdown>
                                 </Col>
                                 <Col md="auto">
                                     <InputGroup>
