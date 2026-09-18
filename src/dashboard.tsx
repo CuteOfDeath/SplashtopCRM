@@ -184,7 +184,9 @@ export default function Dashboard() {
             if (!response.ok || !data.success) {
                 throw new Error(data?.error)
             }
-            setCurrentColumns(Object.keys(data.result[0]))
+            if (data.result && data.result.length > 0){
+                setCurrentColumns(Object.keys(data.result[0]))
+            }
             setDisplayTable(data.result)
             setRowCount(data.count)
             handleScrollBar(undefined,data.count)
@@ -234,11 +236,13 @@ export default function Dashboard() {
             if (!response.ok || !data.success) {
                 throw new Error(data?.error)
             }
-            setCurrentColumns(Object.keys(data.result![0]))
-            if (table) {
+            if (data.result && data.result.length > 0){
+                setCurrentColumns(Object.keys(data.result[0]))
+                if (table) {
                 let returned_columns = Object.keys(data.result![0])
                 setCurrentColumns(returned_columns)
                 setDisplayedColumns(DEFAULTCOLUMNS)
+            }
             }
             setDisplayTable(data.result)
             setTableRange(localrange)
