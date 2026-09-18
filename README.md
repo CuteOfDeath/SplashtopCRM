@@ -5,6 +5,8 @@ Download the [CRMServer Depository](https://github.com/CuteOfDeath/SplashtopCRMS
 
 Update the credentials.txt with your hostname, dbname, username and password.
 
+Import the 'aktywnosc' table into your database from the .sql file included in the backend repository.
+
 You're done!
 
 This was made with Apache and MySQL.
