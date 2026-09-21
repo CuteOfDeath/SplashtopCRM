@@ -970,7 +970,7 @@ export default function Dashboard() {
                                     </Row>
                                     <Row>
                                             <Col>
-                                                <Form.Control type="date" defaultValue={getTodayDateString()} name="dateInput"/>
+                                                <Form.Control type="date" name="dateInput"/>
                                             </Col>
                                             <Col>
                                                 <Form.Control type="time" name="timeInput"/>
