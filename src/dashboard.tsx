@@ -589,6 +589,14 @@ export default function Dashboard() {
         return /^\d{4}-\d{2}-\d{2}$/.test(value) || /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)
     }
 
+    function getTodayDateString(): string {
+        const now = new Date()
+        const year = now.getFullYear()
+        const month = String(now.getMonth() + 1).padStart(2, "0")
+        const day = String(now.getDate()).padStart(2, "0")
+        return `${year}-${month}-${day}`
+    }
+
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>, column: string) => {
         e.preventDefault()
         const input = new FormData(e.currentTarget).get("filterInput") as string;
@@ -878,7 +886,7 @@ export default function Dashboard() {
                                         </Row>
                                         <Row>
                                             <Col>
-                                                <Form.Control type="date" name="dateInput" required/>
+                                                <Form.Control type="date" defaultValue={getTodayDateString()} name="dateInput" required/>
                                             </Col>
                                             <Col>
                                                 <Form.Control type="time" name="timeInput" required/>
@@ -962,7 +970,7 @@ export default function Dashboard() {
                                     </Row>
                                     <Row>
                                             <Col>
-                                                <Form.Control type="date" name="dateInput"/>
+                                                <Form.Control type="date" defaultValue={getTodayDateString()} name="dateInput"/>
                                             </Col>
                                             <Col>
                                                 <Form.Control type="time" name="timeInput"/>
