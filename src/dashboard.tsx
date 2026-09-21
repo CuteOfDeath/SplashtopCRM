@@ -108,17 +108,29 @@ export default function Dashboard() {
             setLoading(false)
         }
     }
-
-    async function handleDetailClick(id: number, name: string) {
+    //which: true = quarry by name, false = quarry by id
+    async function handleDetailClick(id: number, name: string, which?: boolean) {
+    
         if (!showOffCanvas){
             try {
-                const response = await fetch(`${API_BASE}/get_record.php`, {
-                    method: "POST",
-                    body: JSON.stringify({
-                        id: id,
-                        table: currentTable
+                let response 
+                if(which){
+                    response = await fetch(`${API_BASE}/get_record.php`, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            name: name,
+                            table: currentTable
+                        })
                     })
-                })
+                }else{
+                    response = await fetch(`${API_BASE}/get_record.php`, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            id: id,
+                            table: currentTable
+                        })
+                    })
+                }
             const data: TableQueryResult = await response.json()
             if (!response.ok || !data.success) {
                 throw new Error(data?.error)
@@ -627,7 +639,7 @@ export default function Dashboard() {
         <>
             <Navbar expand="lg" className="navbar navbar-expand-lg bg-primary" data-bs-theme="dark" style={{borderRadius: "10px", margin: "20px"}}>
                 <Container fluid>
-                    <Navbar.Brand as={Link} to={`${import.meta.env.BASE_URL}/`}>CRM</Navbar.Brand>
+                    <Navbar.Brand as={Link} to={`${import.meta.env.BASE_URL}/`}>Cemit CRM</Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
                         <Nav className="me-auto">
@@ -646,7 +658,7 @@ export default function Dashboard() {
                             <h3 style={{color:"black", marginBottom: "1%"}}>Najbliższe spotkania:</h3>
                                 <ToastContainer className="position-static d-flex flex-row flex-wrap gap-2 mb-2">
                                     {currentAlerts.map((alert) => (
-                                        <Toast key={alert.id} show={!(hiddenAlerts.includes(alert.id))} onClick={() => handleDetailClick(alert.id,alert.Nazwa)} onClose={(e) => {
+                                        <Toast key={alert.id} show={!(hiddenAlerts.includes(alert.id))} onClick={() => handleDetailClick(alert.id,alert.Nazwa, true)} onClose={(e) => {
                                             e?.stopPropagation(); setHiddenAlerts([...hiddenAlerts, alert.id])
                                             }}>
                                             <Toast.Header>
@@ -906,16 +918,16 @@ export default function Dashboard() {
                                                         Przez: {activity["Użytkownik"]}<br/>
                                                         Notatka: {activity["Notatka"]}<br/>
                                                     </Card.Text>}
-                                                    <Container>
+                                                    { !(activity["Odznaczone"] === 1) && <Container>
                                                         <Row>
                                                             <Col>
-                                                                <Button disabled={activity["Odznaczone"] === 1} onClick={() => {setShowContactModal(true); setCurrentActivityId(activity["id"])}}>Zrealizuj Kontakt</Button>
+                                                                <Button onClick={() => {setShowContactModal(true); setCurrentActivityId(activity["id"])}}>Zrealizuj Kontakt</Button>
                                                             </Col>
                                                             <Col>
-                                                                <Button disabled={activity["Odznaczone"] === 1} onClick={() => {setShowConservationModal(true); setCurrentActivityId(activity["id"])}}>Dodaj Konserwacje</Button>
+                                                                <Button onClick={() => {setShowConservationModal(true); setCurrentActivityId(activity["id"])}}>Dodaj Konserwacje</Button>
                                                             </Col>
                                                         </Row>
-                                                    </Container>
+                                                    </Container>}
                                                 </Card.Body>
                                             </Card>
                                         ))}
